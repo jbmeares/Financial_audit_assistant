@@ -1,0 +1,70 @@
+name: db-backup
+
+# I3. The weekly backup. The Free plan keeps no backups, so this is the only one. It dumps the
+# finance schemas, proves the dump restores into a scratch Postgres, encrypts it with a
+# passphrase and keeps it as a run artifact for 90 days.
+#
+# Needs two repository secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_DB_URL     the session pooler connection string (Supabase > Connect), with password
+#   BACKUP_PASSPHRASE   a long random passphrase; keep a copy in your password manager
+# To restore: download the artifact, then
+#   gpg --decrypt finance.dump.gpg > finance.dump && pg_restore -d "$TARGET_URL" finance.dump
+
+on:
+  schedule:
+    - cron: "0 9 * * 0" # Sundays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    services:
+      scratch:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - name: Check the secrets exist
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ -n "$DB" ] || { echo "::error::Add the SUPABASE_DB_URL repository secret"; exit 1; }
+          [ -n "$PASS" ] || { echo "::error::Add the BACKUP_PASSPHRASE repository secret"; exit 1; }
+
+      - name: Dump the finance schemas
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          docker run --rm --network host -v "$PWD:/out" postgres:17 \
+            pg_dump "$DB" -Fc -f /out/finance.dump \
+              -n raw -n ref -n ledger -n knowledge -n calc -n actions
+          ls -l finance.dump
+
+      - name: Prove it restores into a scratch database
+        run: |
+          docker run --rm --network host -v "$PWD:/out" -e PGPASSWORD=ci-only postgres:17 sh -c '
+            for r in ingest assistant_read assistant_act anon authenticated service_role; do
+              psql -h localhost -U postgres -qc "create role $r nologin" ; done
+            pg_restore -h localhost -U postgres -d postgres --no-owner --exit-on-error /out/finance.dump
+            psql -h localhost -U postgres -Atc "select count(*) from raw.pull_runs"'
+
+      - name: Encrypt
+        env:
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASS" \
+            --symmetric --cipher-algo AES256 -o finance.dump.gpg finance.dump
+          shred -u finance.dump
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: finance-backup-${{ github.run_id }}
+          path: finance.dump.gpg
+          retention-days: 90
