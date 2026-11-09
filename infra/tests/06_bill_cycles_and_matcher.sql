@@ -46,6 +46,10 @@ select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where 
 select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where status = 'confirmed'),
   'nothing is confirmed automatically');
 
+-- Era tags count toward the name score, under either key.
+select pg_temp.check(calc._tx_tags('{"appliedTags": [{"name": "Bill:Phone"}], "tags": ["x"]}') = array['x', 'bill:phone'],
+  'tags are read from tags and appliedTags, as strings or objects');
+
 -- Running again proposes nothing new.
 select calc.refresh_all(null, '2026-02-10');
 select pg_temp.check((select count(*) = 5 from knowledge.proposed_matches), 'a second refresh adds no duplicate proposals');

@@ -52,8 +52,8 @@ as $$
   where d between p_from and p_to
 $$;
 
--- Tag strings on an Era transaction, whatever shape the tags come in (strings, or objects
--- with a name). Era's exact format is checked against real data in task 19.
+-- Tag strings on an Era transaction, from "tags" or "appliedTags" (Era's docs use the second),
+-- whatever shape they come in (strings, or objects with a name). Era's exact format is checked against real data in task 19.
 create function calc._tx_tags(p_payload jsonb) returns text[]
 language sql immutable set search_path = ''
 as $$
@@ -63,7 +63,8 @@ as $$
                when 'string' then e #>> '{}'
                when 'object' then coalesce(e ->> 'name', e ->> 'tag', e ->> 'label')
              end as t
-        from jsonb_array_elements(case when jsonb_typeof(p_payload -> 'tags') = 'array' then p_payload -> 'tags' else '[]'::jsonb end) e
+        from unnest(array['tags', 'appliedTags']) k,
+             jsonb_array_elements(case when jsonb_typeof(p_payload -> k) = 'array' then p_payload -> k else '[]'::jsonb end) e
     ) s
 $$;
 
