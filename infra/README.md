@@ -4,7 +4,7 @@ Code, kept apart from the words. Change it only in Claude Code, with James prese
 
 **Goes here**
 - `migrations/`: SQL for the schema, roles and write functions. A migration that has been applied is never edited; a fix is a new migration.
-- `tests/`: database tests.
+- `tests/`: database tests. Run them with `infra/tests/run`.
 - `functions/`: Supabase Edge Functions (`era-pull`, `finance-mcp`).
 - `scripts/`: repo tooling, such as `check-map`.
 

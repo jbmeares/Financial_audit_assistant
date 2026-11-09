@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Runs the database tests.
+#
+#   infra/tests/run                  tests against $DATABASE_URL (each file rolls back)
+#   infra/tests/run --fresh-local    builds a throwaway local database first: creates the
+#                                    Supabase roles, applies every migration, then tests.
+#                                    Needs a local Postgres you can reach as a superuser
+#                                    through $ADMIN_URL. Used by CI.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+migrations="$here/../migrations"
+
+if [[ "${1:-}" == "--fresh-local" ]]; then
+  : "${ADMIN_URL:?set ADMIN_URL to a superuser connection on a local Postgres}"
+  db="finance_test"
+  psql "$ADMIN_URL" -q -v ON_ERROR_STOP=1 <<SQL
+drop database if exists $db;
+do \$\$ begin
+  if not exists (select 1 from pg_roles where rolname = 'postgres') then
+    create role postgres login createrole;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin; end if;
+end \$\$;
+create database $db owner postgres;
+SQL
+  # Connect as the non-superuser "postgres" role, like Supabase migrations do.
+  DATABASE_URL="$(python3 - "$ADMIN_URL" "$db" <<'PY'
+import sys, urllib.parse as u
+p = u.urlparse(sys.argv[1])
+host = p.hostname or ''
+netloc = 'postgres@' + host + (f':{p.port}' if p.port else '')
+print(u.urlunparse(p._replace(netloc=netloc, path='/' + sys.argv[2])))
+PY
+)"
+  export DATABASE_URL
+  for f in "$migrations"/*.sql; do
+    if head -n1 "$f" | grep -q 'local-test: skip'; then
+      echo "skip  $(basename "$f")"
+      continue
+    fi
+    echo "apply $(basename "$f")"
+    psql "$DATABASE_URL" -q -v ON_ERROR_STOP=1 --single-transaction -f "$f"
+  done
+fi
+
+: "${DATABASE_URL:?set DATABASE_URL}"
+for f in "$here"/[0-9]*.sql; do
+  psql "$DATABASE_URL" -q -o /dev/null -v ON_ERROR_STOP=1 -f "$f" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  /  /'
+  [[ ${PIPESTATUS[0]} -eq 0 ]] || { echo "FAILED in $(basename "$f")"; exit 1; }
+done
+echo "All database tests passed."
