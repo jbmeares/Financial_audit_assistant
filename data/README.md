@@ -4,6 +4,7 @@ A plain-English guide to the database.
 
 **Goes here**
 - `schema.md`: what each table and column means, written after Block C from what was actually built.
+- `calculations.md`: how the `calc` numbers are made (Block E): the refresh order, matcher scores, projection rules, briefing levels and what-if.
 
 **Doesn't go here**
 - Numbers copied from the database (CLAUDE.md, "What lives where").

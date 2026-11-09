@@ -54,7 +54,16 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 
 ## calc
 
-Starting shapes for Block E, which fills them: `bill_cycles` (each bill each month: paid, pending match, not seen yet or late), `cash_projection` (each account each day), `debt_snapshot`, and `briefing` (one row). `refresh_all()` rebuilds them. Until Block E it does nothing.
+Rebuilt by `refresh_all()` after every pull and every named action. Never edited. How each number is made, and the defaults used, are in [calculations.md](calculations.md).
+
+- **`bill_cycles`**: each bill in each due month, with its due date, expected amount and status (paid, pending match, not seen yet or late).
+- **`account_balances`**: the balance each account's numbers start from, whether it came from Era or a person, and whether it's older than 3 days.
+- **`cash_projection`**: each checking and savings account for 60 days: opening, money in, money out, closing, below zero, and what moved that day.
+- **`debt_snapshot`**: each debt's balance, APR, minimum, estimated monthly interest, promo end and payoff priority.
+- **`briefing`**: one row: today's date, how old the numbers are, the next income, a level and a list of RED, YELLOW and GREEN items.
+- **`refresh_runs`**: every refresh, and whether it worked. A failed one keeps the previous numbers.
+
+`what_if(changes)` is a read-only function on top of these.
 
 ## Named actions
 
@@ -77,7 +86,7 @@ Changes to debts, income and key expiry dates are made in Claude Code for v1.
 | Role | Can | Used by |
 | --- | --- | --- |
 | `ingest` | Write `raw`, run `refresh_all()` | The nightly pull |
-| `assistant_read` | Read `raw`, `ref`, `ledger`, `knowledge`, `calc` | Every conversation, through the MCP |
+| `assistant_read` | Read `raw`, `ref`, `ledger`, `knowledge`, `calc`, run `what_if()` | Every conversation, through the MCP |
 | `assistant_act` | Run the named actions, nothing else | The MCP's action tools |
 | owner | Everything | Migrations, in Claude Code with James present |
 
@@ -85,4 +94,4 @@ Row security is on for every table. The public API roles get nothing. The three 
 
 ## Tests
 
-`infra/tests/run` checks the rules above: the ledger refuses changes, each role can do only its job, a void adds a row, `update_bill` keeps the old row, and a duplicate call doesn't write twice. Every test rolls back, so it is safe to run against the live project. The `db-tests` GitHub Action runs them on every pull request that touches the migrations.
+`infra/tests/run` checks the rules above: the ledger refuses changes, each role can do only its job, a void adds a row, `update_bill` keeps the old row, and a duplicate call doesn't write twice. Files 06 to 09 check the calculations on made-up data: a normal month, a short month, a variable bill, a tie between two bills, a stated balance that beats Era, a month with no income, what-if, and a failed refresh. Every test rolls back, so it is safe to run against the live project. The `db-tests` GitHub Action runs them on every pull request that touches the migrations.
