@@ -1,0 +1,22 @@
+name: check-map
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-map:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test check-map
+        run: python3 infra/scripts/test_check_map.py
+      - name: Check the repo map
+        run: infra/scripts/check-map
