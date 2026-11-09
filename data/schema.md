@@ -22,6 +22,8 @@ Each layer reads only from the layers above it, so a bad night of Era data can b
 - **`era_transactions`**: one row per Era transaction id, with the full JSON plus `amount` (negative is money out), `occurred_on`, `pending` and `merchant`. When Era stops returning a transaction, `removed_at` is set. Nothing is deleted.
 - **`era_balances`**: a new row each pull (`current`, `available`, `as_of`), so history is kept.
 
+The pull writes only through functions in `raw`: `start_pull` (takes the lock; a run stuck for 30 minutes is closed as failed), `ingest_accounts`, `ingest_balances`, `ingest_transactions` (upserts by Era id and counts new, changed and unchanged; an account Era didn't list gets a stub row with `{"unlisted": true}`), `mark_removed`, `replace_recurring` and `finish_pull` (merges its counts and error with anything the calc refresh wrote). `next_full_month` says which month the history load does next, and `is_midnight_eastern` decides which of the two nightly schedule times runs. The function is described in `infra/functions/era-pull/README.md`.
+
 Claude's read role can read `raw` (to look up transactions and balances) but never write it.
 
 ## ref

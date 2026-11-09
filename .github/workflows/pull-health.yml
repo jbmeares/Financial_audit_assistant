@@ -1,0 +1,33 @@
+name: pull-health
+
+# I1. The daily alert. Runs after the nightly pull and fails when the last good pull is more
+# than 48 hours old. GitHub emails the repo owner about failed scheduled runs, so a silent
+# week of missed pulls can't happen again.
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # 08:00 or 09:00 in New York, well after the midnight pull
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask era-pull how old the last good pull is
+        env:
+          # The project's anon key. It is public by design (a web page would ship it) and can
+          # read nothing in the finance schemas; it only lets the call reach the function.
+          ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiaHJrd2pmZmdiZnZtcHlqdWFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMTUyODUsImV4cCI6MjA5NjY5MTI4NX0.fvsvuejhFDOyasw284Sf_bLCqgEyFPSzLgp_gMdiVAc
+        run: |
+          code=$(curl -sS -o body.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $ANON_KEY" -H 'Content-Type: application/json' \
+            -d '{"mode":"health"}' \
+            https://lbhrkwjffgbfvmpyjuai.supabase.co/functions/v1/era-pull) || code=000
+          cat body.json 2>/dev/null; echo
+          if [ "$code" != "200" ]; then
+            echo "::error::No good Era pull in the last 48 hours (HTTP $code). Check raw.pull_runs, then the era-pull logs in Supabase."
+            exit 1
+          fi

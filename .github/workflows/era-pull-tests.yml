@@ -1,0 +1,25 @@
+name: era-pull-tests
+
+on:
+  pull_request:
+    paths:
+      - "infra/functions/era-pull/**"
+      - ".github/workflows/era-pull-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/functions/era-pull/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run the era-pull tests (Era and the database are faked)
+        run: infra/functions/era-pull/test

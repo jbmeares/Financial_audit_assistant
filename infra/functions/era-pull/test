@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Runs the era-pull tests with Node (22+). The code is plain TypeScript that Deno and Node both run.
+set -euo pipefail
+cd "$(dirname "$0")"
+node --experimental-strip-types --no-warnings --test pull.test.ts
