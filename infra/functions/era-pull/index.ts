@@ -30,12 +30,12 @@ const json = (v: unknown) => JSON.stringify(v);
 
 const db: Db = {
   startPull: (k, s, e) => asIngest<string>("select raw.start_pull($1, $2::date, $3::date)", [k, s, e]).then(Number),
-  finishPull: (r, st, c, err) => asIngest("select raw.finish_pull($1, $2, $3::jsonb, $4)", [r, st, json(c), err]).then(() => {}),
-  ingestAccounts: (r, rows) => asIngest<number>("select raw.ingest_accounts($1, $2::jsonb)", [r, json(rows)]),
-  ingestBalances: (r, rows) => asIngest<number>("select raw.ingest_balances($1, $2::jsonb)", [r, json(rows)]),
-  ingestTransactions: (r, rows) => asIngest("select raw.ingest_transactions($1, $2::jsonb)", [r, json(rows)]),
+  finishPull: (r, st, c, err) => asIngest("select raw.finish_pull($1, $2, $3::text::jsonb, $4)", [r, st, json(c), err]).then(() => {}),
+  ingestAccounts: (r, rows) => asIngest<number>("select raw.ingest_accounts($1, $2::text::jsonb)", [r, json(rows)]),
+  ingestBalances: (r, rows) => asIngest<number>("select raw.ingest_balances($1, $2::text::jsonb)", [r, json(rows)]),
+  ingestTransactions: (r, rows) => asIngest("select raw.ingest_transactions($1, $2::text::jsonb)", [r, json(rows)]),
   markRemoved: (r, s, e, ids) => asIngest<number>("select raw.mark_removed($1, $2::date, $3::date, $4::text[])", [r, s, e, ids]),
-  replaceRecurring: (r, rows) => asIngest<number>("select raw.replace_recurring($1, $2::jsonb)", [r, json(rows)]),
+  replaceRecurring: (r, rows) => asIngest<number>("select raw.replace_recurring($1, $2::text::jsonb)", [r, json(rows)]),
   // Block E's refresh takes the run id and returns {"ok": ...}. Until that is applied, the
   // stub takes no arguments and returns nothing, so fall back to it.
   refreshAll: async (run) => {
