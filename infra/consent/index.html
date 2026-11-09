@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Household finance sign-in</title>
+<style>
+  :root { --bg: #f7f6f3; --card: #fff; --ink: #1f1f1f; --muted: #666; --line: #ddd; --accent: #1f5f99; --bad: #a33; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161616; --card: #1f1f1f; --ink: #eee; --muted: #aaa; --line: #333; --accent: #6aa8e0; --bad: #e27; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 26rem; margin: 3rem auto; padding: 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1.5rem; }
+  h1 { font-size: 1.25rem; margin: 0 0 1rem; }
+  label { display: block; margin: .75rem 0 .25rem; font-size: .9rem; color: var(--muted); }
+  input { width: 100%; padding: .6rem; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+  button { margin-top: 1rem; padding: .6rem 1rem; border-radius: 6px; border: 1px solid var(--accent); font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; }
+  button.secondary { background: transparent; color: var(--accent); margin-left: .5rem; }
+  dl { margin: 0; } dt { color: var(--muted); font-size: .85rem; margin-top: .6rem; } dd { margin: 0; word-break: break-all; }
+  .error { color: var(--bad); margin-top: 1rem; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>Household finance</h1>
+
+    <p id="status" class="muted">Loading…</p>
+
+    <form id="login" hidden>
+      <p class="muted">Sign in to let an app use the household finance server.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+
+    <section id="consent" hidden>
+      <p><strong id="client-name"></strong> wants to use the household finance server as you.</p>
+      <dl>
+        <dt>Signed in as</dt><dd id="user-email"></dd>
+        <dt>It will send you back to</dt><dd id="redirect-uri"></dd>
+        <dt>Permissions asked for</dt><dd id="scopes"></dd>
+      </dl>
+      <button class="primary" id="approve" type="button">Allow</button>
+      <button class="secondary" id="deny" type="button">Deny</button>
+      <p class="muted">Signed in as the wrong person? <a href="#" id="signout">Sign out</a></p>
+    </section>
+
+    <p id="error" class="error" hidden></p>
+  </div>
+</main>
+
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm";
+
+  // Public values: the project URL and its publishable key are meant to be in browser code.
+  const SUPABASE_URL = "https://lbhrkwjffgbfvmpyjuai.supabase.co";
+  const PUBLISHABLE_KEY = "sb_publishable_73Mj7j4_whWxfX2CJIzTLg_R48Dh-bn";
+  const supabase = createClient(SUPABASE_URL, PUBLISHABLE_KEY);
+
+  const $ = (id) => document.getElementById(id);
+  const show = (id, on = true) => { $(id).hidden = !on; };
+  const fail = (msg) => { $("error").textContent = msg; show("error"); show("status", false); };
+
+  const authorizationId = new URLSearchParams(location.search).get("authorization_id");
+
+  async function loadConsent() {
+    show("login", false);
+    $("status").textContent = "Checking the request…"; show("status");
+    const { data, error } = await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
+    if (error || !data) return fail(error?.message || "This sign-in request isn't valid any more. Start again from the app.");
+    // Already approved before: Supabase hands back the redirect straight away.
+    if (!data.authorization_id && data.redirect_url) { location.assign(data.redirect_url); return; }
+    $("client-name").textContent = data.client?.name || data.client?.client_name || "An app";
+    $("user-email").textContent = data.user?.email || "";
+    $("redirect-uri").textContent = data.redirect_uri || "";
+    $("scopes").textContent = (data.scope || "").trim() || "basic account details";
+    show("status", false);
+    show("consent");
+  }
+
+  async function decide(approve) {
+    $("approve").disabled = $("deny").disabled = true;
+    const fn = approve ? supabase.auth.oauth.approveAuthorization : supabase.auth.oauth.denyAuthorization;
+    const { data, error } = await fn.call(supabase.auth.oauth, authorizationId, { skipBrowserRedirect: true });
+    if (error || !data?.redirect_url) {
+      $("approve").disabled = $("deny").disabled = false;
+      return fail(error?.message || "Something went wrong. Start again from the app.");
+    }
+    location.assign(data.redirect_url);
+  }
+
+  $("login").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    show("error", false);
+    const { error } = await supabase.auth.signInWithPassword({ email: $("email").value, password: $("password").value });
+    if (error) return fail(error.message);
+    loadConsent();
+  });
+  $("approve").addEventListener("click", () => decide(true));
+  $("deny").addEventListener("click", () => decide(false));
+  $("signout").addEventListener("click", async (e) => {
+    e.preventDefault();
+    await supabase.auth.signOut();
+    show("consent", false); show("login"); show("status", false);
+  });
+
+  (async () => {
+    if (!authorizationId) {
+      $("status").textContent = "This page opens when an app (like Claude) asks to sign in to the household finance server. There's nothing to do here on its own.";
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) return loadConsent();
+    show("status", false);
+    show("login");
+  })();
+</script>
+</body>
+</html>
