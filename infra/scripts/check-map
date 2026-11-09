@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Check that the repo map in CLAUDE.md matches the folders on disk.
+
+Fails when:
+  - a top-level folder has no README.md
+  - a top-level folder has no line in the CLAUDE.md "## Folders" block
+  - CLAUDE.md lists a folder that doesn't exist
+
+Hidden folders (.github, .git, ...) are skipped. Constitution rule 24.
+Usage: infra/scripts/check-map [repo-root]
+"""
+import pathlib
+import re
+import sys
+
+
+def listed_folders(claude_md: str) -> set[str]:
+    """Folder names from the first code block under '## Folders'."""
+    section = claude_md.split("## Folders", 1)
+    if len(section) < 2:
+        raise ValueError('CLAUDE.md has no "## Folders" section')
+    block = re.search(r"```[^\n]*\n(.*?)```", section[1], re.S)
+    if not block:
+        raise ValueError('"## Folders" section has no code block')
+    names = set()
+    for line in block.group(1).splitlines():
+        m = re.match(r"\s*([A-Za-z0-9_.-]+)/", line)
+        if m:
+            names.add(m.group(1))
+    return names
+
+
+def check(root: pathlib.Path) -> list[str]:
+    claude = root / "CLAUDE.md"
+    if not claude.is_file():
+        return ["CLAUDE.md is missing"]
+    try:
+        listed = listed_folders(claude.read_text(encoding="utf-8"))
+    except ValueError as e:
+        return [str(e)]
+    on_disk = {p.name for p in root.iterdir() if p.is_dir() and not p.name.startswith(".")}
+    problems = []
+    for name in sorted(on_disk):
+        if not (root / name / "README.md").is_file():
+            problems.append(f"{name}/ has no README.md")
+        if name not in listed:
+            problems.append(f"{name}/ is not listed in CLAUDE.md under ## Folders")
+    for name in sorted(listed - on_disk):
+        problems.append(f"CLAUDE.md lists {name}/ but the folder doesn't exist")
+    return problems
+
+
+def main() -> int:
+    root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
+    problems = check(root)
+    for p in problems:
+        print(f"check-map: {p}")
+    if not problems:
+        print("check-map: ok")
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
