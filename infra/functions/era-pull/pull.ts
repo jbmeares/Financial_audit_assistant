@@ -46,34 +46,58 @@ async function pullAccounts(era: Era, db: Db, run: number, counts: Record<string
   return accounts;
 }
 
-// Reads every page of the window. Returns the ids of the accounts seen, for mark_removed.
-async function pullTransactions(era: Era, db: Db, run: number, from: string, to: string, counts: Record<string, unknown>) {
-  const tally = { new: 0, changed: 0, unchanged: 0 };
-  let seen = 0;
-  let pending = 0;
-  for (let page = 1; ; page++) {
+// Era pages with a sort key that isn't unique (the date), so a window bigger than one page can
+// repeat one transaction and skip another across pages. So the window is split in half until
+// each piece fits in one page. Only a single day with more than 100 transactions is paged, and
+// then the count is checked. Returns whether every transaction Era counted was seen.
+async function fetchWindow(
+  era: Era, from: string, to: string, out: Map<string, ReturnType<typeof mapTransaction>>, counts: Record<string, unknown>,
+): Promise<boolean> {
+  const first = await era.get("/banking/transactions", {
+    fromDate: from, toDate: to, page: 1, pageSize: PAGE_SIZE, includePending: true,
+  }) as Record<string, unknown>;
+  if (first.historyWindowApplied === true) counts.history_window_floor = first.historyWindowFloorDate ?? null;
+  const total = Number((first.pagination as Record<string, unknown> | undefined)?.totalItems ?? NaN);
+  const rows = list(first, "transactions", `transactions ${from}..${to}`).map(mapTransaction);
+
+  if (Number.isFinite(total) && total > rows.length && from < to) {
+    const mid = addDays(from, Math.floor((daysBetween(from, to)) / 2));
+    const a = await fetchWindow(era, from, mid, out, counts);
+    const b = await fetchWindow(era, addDays(mid, 1), to, out, counts);
+    return a && b;
+  }
+
+  const before = out.size;
+  for (const r of rows) out.set(r.id, r);
+  const pages = Number((first.pagination as Record<string, unknown> | undefined)?.totalPages ?? 1);
+  for (let page = 2; page <= pages; page++) {
     const body = await era.get("/banking/transactions", {
       fromDate: from, toDate: to, page, pageSize: PAGE_SIZE, includePending: true,
-      sortBy: "transactionDate", sortDirection: "asc",
-    }) as Record<string, unknown>;
-    const rows = list(body, "transactions", `transactions page ${page}`).map(mapTransaction);
-    if (page === 1 && body.historyWindowApplied === true) {
-      counts.history_window_floor = body.historyWindowFloorDate ?? null;
-    }
-    if (rows.length) {
-      const r = await db.ingestTransactions(run, rows);
-      tally.new += r.new; tally.changed += r.changed; tally.unchanged += r.unchanged;
-      seen += rows.length;
-      pending += rows.filter((t) => t.pending).length;
-    }
-    const p = body.pagination as Record<string, number> | undefined;
-    const last = p?.totalPages !== undefined ? page >= p.totalPages : rows.length < PAGE_SIZE;
-    if (last || rows.length === 0) break;
+    });
+    for (const r of list(body, "transactions", `transactions ${from} page ${page}`).map(mapTransaction)) out.set(r.id, r);
   }
-  counts.transactions_seen = seen;
+  return !Number.isFinite(total) || out.size - before >= total;
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+// Reads the whole window, writes it, and says whether the read was complete.
+async function pullTransactions(era: Era, db: Db, run: number, from: string, to: string, counts: Record<string, unknown>) {
+  const seen = new Map<string, ReturnType<typeof mapTransaction>>();
+  const complete = await fetchWindow(era, from, to, seen, counts);
+  const rows = [...seen.values()];
+  const tally = { new: 0, changed: 0, unchanged: 0 };
+  for (let i = 0; i < rows.length; i += 500) {
+    const r = await db.ingestTransactions(run, rows.slice(i, i + 500));
+    tally.new += r.new; tally.changed += r.changed; tally.unchanged += r.unchanged;
+  }
+  counts.transactions_seen = rows.length;
   counts.transactions_new = tally.new;
   counts.transactions_changed = tally.changed;
-  counts.pending_seen = pending;
+  counts.pending_seen = rows.filter((t) => t.pending).length;
+  return complete;
 }
 
 async function run(
@@ -105,8 +129,12 @@ async function run(
       }
     }
 
-    await pullTransactions(era, db, id, from, to, counts);
-    counts.transactions_removed = await db.markRemoved(id, from, to, accounts.map((a) => a.id));
+    // Only a complete read can say a transaction is gone.
+    if (await pullTransactions(era, db, id, from, to, counts)) {
+      counts.transactions_removed = await db.markRemoved(id, from, to, accounts.map((a) => a.id));
+    } else {
+      problems.push("Era's transaction count didn't match what was read, so nothing was marked removed");
+    }
 
     if (opts.recurring) {
       const body = await era.get("/banking/recurring");

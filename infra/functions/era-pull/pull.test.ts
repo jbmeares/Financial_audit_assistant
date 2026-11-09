@@ -64,7 +64,7 @@ const accounts = { accounts: [
 const txn = (id: string, amount: number, date = TODAY, extra: Record<string, unknown> = {}) =>
   ({ id, accountGroupKey: "fag_chk", amount, transactionDate: date, merchantName: "Shop", ...extra });
 
-function normalEra(transactions: unknown[], over: Partial<Record<string, Handler>> = {}): Handler {
+function normalEra(transactions: any[], over: Partial<Record<string, Handler>> = {}): Handler {
   return (u) => {
     const p = u.pathname.replace("/api", "");
     for (const [k, h] of Object.entries(over)) if (p.startsWith(k)) return h!(u);
@@ -73,16 +73,20 @@ function normalEra(transactions: unknown[], over: Partial<Record<string, Handler
     if (p === "/banking/transactions") {
       const page = Number(u.searchParams.get("page"));
       const size = Number(u.searchParams.get("pageSize"));
-      const items = transactions.slice((page - 1) * size, page * size);
-      return { status: 200, body: { transactions: items, pagination: { currentPage: page, pageSize: size, totalItems: transactions.length, totalPages: Math.max(1, Math.ceil(transactions.length / size)) } } };
+      const from = u.searchParams.get("fromDate") ?? "0000", to = u.searchParams.get("toDate") ?? "9999";
+      const inWindow = (transactions as { transactionDate: string }[]).filter((t) => t.transactionDate >= from && t.transactionDate <= to);
+      const items = inWindow.slice((page - 1) * size, page * size);
+      return { status: 200, body: { transactions: items, pagination: { currentPage: page, pageSize: size, totalItems: inWindow.length, totalPages: Math.max(1, Math.ceil(inWindow.length / size)) } } };
     }
     if (p === "/banking/recurring") return { status: 200, body: { items: [{ merchant: "Phone", frequency: "monthly", type: "bill", estimatedAmount: { amount: 50, currency: "USD" } }] } };
     return { status: 404 };
   };
 }
 
-test("a normal night pulls accounts, balances, every page of transactions and recurring", async () => {
-  const many = Array.from({ length: 150 }, (_, i) => txn(`utgr_${i}`, -i - 1));
+const dayBefore = (n: number) => new Date(Date.parse(`${TODAY}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
+
+test("a normal night pulls accounts, balances, every transaction and recurring", async () => {
+  const many = Array.from({ length: 150 }, (_, i) => txn(`utgr_${i}`, -i - 1, dayBefore(i % 30)));
   const era = fakeEra(normalEra(many));
   const f = fakeDb();
   const r = await runNightly(era.client, f.db, NOW);
@@ -93,10 +97,31 @@ test("a normal night pulls accounts, balances, every page of transactions and re
   assert.equal(r.counts.recurring, 1);
   assert.equal(f.refreshed, 1);
   assert.equal(f.runs[r.run].kind, "nightly");
-  const pages = era.seen.filter((s) => s.startsWith("/banking/transactions"));
-  assert.equal(pages.length, 2, "two pages of 100");
-  assert.match(pages[0], /includePending=true/);
-  assert.match(pages[0], /fromDate=2026-10-11&toDate=2026-11-10/, "the last 30 days, in New York dates");
+  const calls = era.seen.filter((s) => s.startsWith("/banking/transactions"));
+  assert.match(calls[0], /includePending=true/);
+  assert.match(calls[0], /fromDate=2026-10-11&toDate=2026-11-10/, "the last 30 days, in New York dates");
+  assert.ok(calls.slice(1).every((c) => /page=1&/.test(c)), "a window over 100 is split, not paged");
+  assert.equal(r.counts.transactions_removed, 0);
+});
+
+test("unstable paging on a busy single day is caught: nothing is marked removed", async () => {
+  // 120 transactions on one day; page 2 repeats one from page 1 instead of the last one.
+  const day = Array.from({ length: 120 }, (_, i) => txn(`utgr_d${i}`, -1));
+  const era = fakeEra((u) => {
+    const p = u.pathname.replace("/api", "");
+    if (p === "/banking/transactions") {
+      const page = Number(u.searchParams.get("page"));
+      const items = page === 1 ? day.slice(0, 100) : [...day.slice(100, 119), day[0]];
+      return { status: 200, body: { transactions: items, pagination: { currentPage: page, pageSize: 100, totalItems: 120, totalPages: 2 } } };
+    }
+    return normalEra([])(u);
+  });
+  const f = fakeDb();
+  const r = await runNightly(era.client, f.db, NOW);
+  assert.equal(r.status, "partial");
+  assert.match(r.error!, /count didn't match/);
+  assert.equal(r.counts.transactions_seen, 119);
+  assert.equal(r.counts.transactions_removed, undefined);
 });
 
 test("a 429 waits for Retry-After and tries again", async () => {

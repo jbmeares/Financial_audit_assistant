@@ -3,6 +3,7 @@
 // POST body {"mode": ...}
 //   nightly  from pg_cron at 04:00 and 05:00 UTC; only the one in New York's midnight hour runs
 //   full     the history load: one month per run, newest first, as many as fit in ~100 s
+//            ({"restartAt": "<ISO time>"} starts it over, ignoring full runs before that time)
 //   manual   a nightly-style run on demand (refused if a run finished in the last 10 minutes)
 //   health   200 if the last good pull is under 48 hours old, else 503 (the daily alert, I1)
 //   shape    the field names and types of one record of each kind, with no values (D0)
@@ -15,7 +16,7 @@ import { EraClient } from "./era.ts";
 import { type Db, runFullMonth, runNightly } from "./pull.ts";
 import { shape } from "./shape.ts";
 
-const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 1, idle_timeout: 20 });
+const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 1, idle_timeout: 20, onnotice: () => {} });
 
 // Runs one statement as ingest and returns the first column of the first row.
 async function asIngest<T>(text: string, params: unknown[]): Promise<T> {
@@ -54,7 +55,7 @@ const respond = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
-  const { mode = "nightly", force = false } = await req.json().catch(() => ({}));
+  const { mode = "nightly", force = false, restartAt = null } = await req.json().catch(() => ({}));
 
   if (mode === "health") {
     const age = await asIngest<number | null>(
@@ -96,7 +97,9 @@ Deno.serve(async (req) => {
       const started = Date.now();
       const results = [];
       while (Date.now() - started < 100_000) {
-        const month = await asIngest<string | null>("select raw.next_full_month()::text", []);
+        // restartAt (an ISO time) runs the load again from the top, ignoring full runs before it.
+        const month = await asIngest<string | null>(
+          "select raw.next_full_month(p_after := coalesce($1::timestamptz, '-infinity'))::text", [restartAt]);
         if (!month) return respond(200, { complete: true, results });
         const r = await runFullMonth(era, db, month);
         results.push({ month, ...r });
