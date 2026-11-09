@@ -17,8 +17,14 @@ select pg_temp.expect_error('assistant_read', $$update ref.bills set amount = 1$
   '%permission denied%', 'assistant_read cannot update ref');
 select pg_temp.expect_error('assistant_read', $$delete from knowledge.proposed_matches$$,
   '%permission denied%', 'assistant_read cannot delete from knowledge');
-select pg_temp.expect_error('assistant_read', $$select count(*) from raw.era_transactions$$,
-  '%permission denied%', 'assistant_read cannot read raw');
+select pg_temp.check(pg_temp.as_role('assistant_read', $$select count(*) from raw.era_transactions$$)::int = 3,
+  'assistant_read reads raw transactions');
+select pg_temp.expect_error('assistant_read', $$insert into raw.pull_runs (kind) values ('manual')$$,
+  '%permission denied%', 'assistant_read cannot insert into raw');
+select pg_temp.expect_error('assistant_read', $$update raw.era_transactions set amount = 0$$,
+  '%permission denied%', 'assistant_read cannot update raw');
+select pg_temp.expect_error('assistant_read', $$delete from raw.era_balances$$,
+  '%permission denied%', 'assistant_read cannot delete from raw');
 select pg_temp.expect_error('assistant_read', $$select actions.log_question('james', 'q')$$,
   '%permission denied%', 'assistant_read cannot run actions');
 

@@ -22,7 +22,7 @@ Each layer reads only from the layers above it, so a bad night of Era data can b
 - **`era_transactions`**: one row per Era transaction id, with the full JSON plus `amount` (negative is money out), `occurred_on`, `pending` and `merchant`. When Era stops returning a transaction, `removed_at` is set. Nothing is deleted.
 - **`era_balances`**: a new row each pull (`current`, `available`, `as_of`), so history is kept.
 
-Claude's read role can't see `raw`. It reads the layers below.
+Claude's read role can read `raw` (to look up transactions and balances) but never write it.
 
 ## ref
 
@@ -77,7 +77,7 @@ Changes to debts, income and key expiry dates are made in Claude Code for v1.
 | Role | Can | Used by |
 | --- | --- | --- |
 | `ingest` | Write `raw`, run `refresh_all()` | The nightly pull |
-| `assistant_read` | Read `ref`, `ledger`, `knowledge`, `calc` | Every conversation, through the MCP |
+| `assistant_read` | Read `raw`, `ref`, `ledger`, `knowledge`, `calc` | Every conversation, through the MCP |
 | `assistant_act` | Run the named actions, nothing else | The MCP's action tools |
 | owner | Everything | Migrations, in Claude Code with James present |
 
