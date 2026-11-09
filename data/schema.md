@@ -1,0 +1,88 @@
+# Database guide
+
+A plain-English map of the Supabase database. It describes structure only, never amounts (CLAUDE.md, "What lives where"). The SQL is in `infra/migrations/`.
+
+## The layers
+
+Each layer reads only from the layers above it, so a bad night of Era data can be thrown away and pulled again without touching anything a person confirmed.
+
+| Schema | Holds | Written by |
+| --- | --- | --- |
+| `raw` | Exactly what Era sent | The nightly pull (`ingest`) |
+| `ref` | What James or Katelyn told us is true | The interview, in Claude Code, and `update_bill` |
+| `ledger` | Payments, stated balances, adjustments. Append-only | Named actions only |
+| `knowledge` | Proposed matches, open questions, life events | The matcher proposes, actions decide |
+| `calc` | Bill cycles, cash projection, debts, the briefing | SQL functions (Block E). Never edited |
+| `actions` | The named write functions. No tables | Migrations only |
+
+## raw
+
+- **`pull_runs`**: one row per pull, with its kind (full, nightly, manual), status (running, ok, partial, failed), date window, counts and error. Only one pull can be running at a time. A missing or failed night shows up in the briefing.
+- **`era_accounts`**, **`era_recurring`**: Era's records, kept as the full JSON Era sent. The recurring list is replaced whole on each pull.
+- **`era_transactions`**: one row per Era transaction id, with the full JSON plus `amount` (negative is money out), `occurred_on`, `pending` and `merchant`. When Era stops returning a transaction, `removed_at` is set. Nothing is deleted.
+- **`era_balances`**: a new row each pull (`current`, `available`, `as_of`), so history is kept.
+
+Claude's read role can't see `raw`. It reads the layers below.
+
+## ref
+
+Every row has `valid_from` and `valid_to`. A change closes the old row and adds a new one, so nothing is overwritten. Each thing has a short stable key (for example `phone`) shared by all its versions. The `current_*` views show the rows in effect today.
+
+- **`people`**: `james`, `katelyn`.
+- **`accounts`**: an Era account mapped to a name, an owner (a person or `joint`), a kind (checking, savings, card, loan) and a role in words.
+- **`bills`**: name, amount, fixed or variable, tolerance, due day, the account it's paid from, autopay, and cadence (monthly, quarterly, semiannual or annual, with one known due date when not monthly). Every field except tolerance and note is required. A field nobody knows becomes an open question, never a guess (rule 6).
+- **`bill_aliases`**: names a bill shows up as in transactions.
+- **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first).
+- **`income_sources`**: person, amount, cadence (monthly or biweekly), one known pay date to count from, and the deposit account.
+- **`api_keys`**: each key's name, scope and expiry date. Never the key itself. `current_api_keys` adds `days_left`.
+
+## ledger
+
+Append-only. A trigger refuses every update, delete and truncate, even from the owner.
+
+- **`payments`**: a bill is paid only when a row here says so (rule 4). Each has the bill, the month it covers, amount, date, the Era transaction, and who confirmed it.
+- **`balance_statements`**: a balance someone stated. It beats Era until Era reports a newer one (rule 3).
+- **`adjustments`**: named in the design without detail. No action writes here yet.
+- **`voids`**: cancels exactly one row above, with a reason. The original stays. The `*_effective` views leave voided rows out.
+
+## knowledge
+
+- **`proposed_matches`**: a transaction paired with a bill and a month, with a score and a reason. Status is pending, ambiguous (two bills tied), confirmed or rejected. A pairing can be proposed only once, so a rejected one never comes back.
+- **`open_questions`**: a question for a person, or `new_context` parked from claude.ai to be filed in the repo later (rule 22).
+- **`life_events`**: date, title, amount and the path of its story file in `life/`.
+- **`action_calls`**: every named action and what it returned. It makes a repeated call harmless.
+
+## calc
+
+Starting shapes for Block E, which fills them: `bill_cycles` (each bill each month: paid, pending match, not seen yet or late), `cash_projection` (each account each day), `debt_snapshot`, and `briefing` (one row). `refresh_all()` rebuilds them. Until Block E it does nothing.
+
+## Named actions
+
+The MCP's action tools call these and nothing else. Each one needs a person (`james` or `katelyn`), checks its input, writes in one transaction and returns the new row. Bad input is refused with a plain sentence and nothing is written. The same call again within 10 minutes returns the first result instead of writing twice.
+
+| Action | What it does |
+| --- | --- |
+| `confirm_match` | Turns a proposed match into a payment, closes other proposals for that transaction, and can add the merchant name as an alias |
+| `reject_match` | Dismisses a proposed match for good |
+| `record_balance` | Logs a balance someone stated, then re-runs the numbers |
+| `log_life_event` | Adds a dated event, with an optional amount and story file |
+| `update_bill` | Changes a bill by closing the old row and adding a new one. Also creates a new bill, or ends one |
+| `void_entry` | Voids a payment, balance statement or adjustment with a reason. Voiding a confirmed match also rejects that pairing |
+| `log_question`, `answer_question` | Parks a question or new context, and answers it |
+
+Changes to debts, income and key expiry dates are made in Claude Code for v1.
+
+## Who can do what
+
+| Role | Can | Used by |
+| --- | --- | --- |
+| `ingest` | Write `raw`, run `refresh_all()` | The nightly pull |
+| `assistant_read` | Read `ref`, `ledger`, `knowledge`, `calc` | Every conversation, through the MCP |
+| `assistant_act` | Run the named actions, nothing else | The MCP's action tools |
+| owner | Everything | Migrations, in Claude Code with James present |
+
+Row security is on for every table. The public API roles get nothing. The three roles have no login yet; Blocks D and F give them one, with passwords kept as Supabase secrets.
+
+## Tests
+
+`infra/tests/run` checks the rules above: the ledger refuses changes, each role can do only its job, a void adds a row, `update_bill` keeps the old row, and a duplicate call doesn't write twice. Every test rolls back, so it is safe to run against the live project. The `db-tests` GitHub Action runs them on every pull request that touches the migrations.

@@ -8,5 +8,3 @@ A plain-English guide to the database.
 **Doesn't go here**
 - Numbers copied from the database (CLAUDE.md, "What lives where").
 - SQL. Migrations live in `infra/migrations/`.
-
-`schema.md` isn't written yet. It comes with the schema pull request.
