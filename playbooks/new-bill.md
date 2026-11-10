@@ -7,7 +7,7 @@ A bill showed up for the first time, or its amount, due day or account changed.
 1. `query` the current bill (if it exists) so you change the right one ([rule 5](../constitution.md)).
 2. Gather the fields `update_bill` needs: name, amount, fixed or variable, due day, the account it's paid from, autopay yes or no, cadence. Ask only for what's missing, one question at a time ([rule 14](../constitution.md)).
 3. `update_bill`. It keeps the old version, so history isn't lost.
-4. If the bill shows up in transactions under a different name, note it so it can become an alias.
+4. If the bill shows up in transactions under a different name, note it so it can become an alias. The matcher only proposes a payment that names the bill or is its exact amount, so a variable bill with no alias is never matched.
 
 ## Say first
 

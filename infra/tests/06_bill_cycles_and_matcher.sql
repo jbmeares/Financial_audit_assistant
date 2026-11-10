@@ -33,8 +33,21 @@ select pg_temp.check((select status = 'pending_match' and proposed_match_id is n
 select pg_temp.check((select score = 100 and status = 'pending' and due_month = '2026-02-01'
                         from knowledge.proposed_matches where era_transaction_id = 'tx-phone' and bill_key = 'phone'),
   'normal month: account, amount, date and alias give 100');
-select pg_temp.check((select score = 90 and status = 'pending' from knowledge.proposed_matches where era_transaction_id = 'tx-power' and bill_key = 'power'),
+select pg_temp.check((select score = 100 and status = 'pending' from knowledge.proposed_matches where era_transaction_id = 'tx-power' and bill_key = 'power'),
   'variable bill: 112.40 is within 15% of 100');
+select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id in ('tx-fee', 'tx-interest', 'tx-transfer')),
+  'fees, interest charges and transfers between own accounts are never proposed');
+select pg_temp.check(calc._not_a_bill_reason('{"description": "Capital One", "transferLink": {"counterpartAccountGroupKey": "era-card"}}', '2026-02-10') is null,
+  'a payment to a card is still a bill payment');
+select pg_temp.check(calc._not_a_bill_reason('{"description": "Hollywood Feed"}', '2026-02-10') is null
+                     and calc._not_a_bill_reason('{"description": "Overdraft Fee"}', '2026-02-10') = 'fee',
+  'fee means the word fee');
+select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id = 'tx-near'),
+  'near a variable bill''s amount with no name is not proposed');
+select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id = 'tx-named-other'),
+  'a charge that names one bill is never proposed for another');
+select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id = 'tx-early'),
+  'a payment outside every unpaid cycle''s window is not proposed');
 select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id = 'tx-shop'),
   'a charge outside the tolerance is not proposed');
 select pg_temp.check((select count(*) = 2 and bool_and(status = 'ambiguous') from knowledge.proposed_matches where era_transaction_id = 'tx-stream'),
@@ -87,4 +100,36 @@ select actions.update_bill('james', 'insurance', '{}', '2026-03-01', true);
 select calc.refresh_all(null, '2026-02-10');
 select pg_temp.check(not exists (select 1 from calc.bill_cycles where bill_key = 'insurance' and due_month = '2026-04-01'),
   'an ended bill has no cycles after it ends');
+
+-- An alias in Era's description counts as the name, not only the merchant name.
+insert into ref.bill_aliases (bill_key, alias, valid_from) values ('gym', 'fitco', '2026-01-01');
+insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant)
+values ('tx-gym-desc', 'era-chk', '{"description": "FITCO GYM 42"}', 'h', -60.00, '2026-02-09', false, 'CARD PURCHASE');
+select calc.refresh_all(null, '2026-02-10');
+select pg_temp.check((select score = 100 and due_month = '2026-02-01' from knowledge.proposed_matches
+                       where era_transaction_id = 'tx-gym-desc' and bill_key = 'gym'),
+  'an alias in Era''s description counts as the name');
+
+-- A bill tracked from February, due the 25th: a payment on Jan 26 is inside February's window but
+-- paid January, so it is left alone. One on Feb 24 is proposed.
+insert into ref.bills (bill_key, name, amount, amount_kind, due_day, account_key, autopay, cadence, cadence_anchor, valid_from)
+values ('water', 'Water', 30.00, 'fixed', 25, 'chk', false, 'monthly', null, '2026-02-01');
+insert into ref.bill_aliases (bill_key, alias, valid_from) values ('water', 'waterco', '2026-01-01');
+insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant)
+values ('tx-water-jan', 'era-chk', '{}', 'h', -30.00, '2026-01-26', false, 'WATERCO'),
+       ('tx-water-feb', 'era-chk', '{}', 'h', -30.00, '2026-02-24', false, 'WATERCO');
+select calc.refresh_all(null, '2026-02-26');
+select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id = 'tx-water-jan'),
+  'a payment nearer the previous due date isn''t proposed for this one');
+select pg_temp.check(exists (select 1 from knowledge.proposed_matches where era_transaction_id = 'tx-water-feb' and due_month = '2026-02-01'),
+  'the payment near this due date is');
+
+-- A withdrawn proposal (rejected, no person) can be proposed again; a person's no can't.
+update knowledge.proposed_matches set status = 'rejected', decided_at = now(), decision_note = 'withdrawn'
+ where era_transaction_id = 'tx-water-feb';
+select calc.refresh_all(null, '2026-02-26');
+select pg_temp.check((select status = 'pending' and decided_at is null from knowledge.proposed_matches where era_transaction_id = 'tx-water-feb'),
+  'a withdrawn pairing comes back under the current rules');
+select pg_temp.check((select status = 'rejected' from knowledge.proposed_matches where era_transaction_id = 'tx-rejected'),
+  'a pairing a person rejected stays rejected');
 rollback;
