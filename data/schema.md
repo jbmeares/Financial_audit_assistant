@@ -32,17 +32,25 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
 
 - **`people`**: `james`, `katelyn`.
 - **`accounts`**: an Era account mapped to a name, an owner (a person or `joint`), a kind (checking, savings, card, loan) and a role in words.
-- **`bills`**: name, amount, fixed or variable, tolerance, due day, the account it's paid from, autopay, and cadence (monthly, quarterly, semiannual or annual, with one known due date when not monthly). Every field except tolerance and note is required. A field nobody knows becomes an open question, never a guess (rule 6).
+- **`bills`**: name, amount, fixed or variable, tolerance, the account it's paid from, autopay, and a schedule. The schedule is a cadence plus what that cadence needs:
+    - `monthly`: a due day.
+    - `every_other_month`, `quarterly`, `semiannual`, `annual`: a due day and one known due date.
+    - `weekly`, `biweekly`: one known due date.
+    - `every_n_weeks`: one known due date and how many weeks apart (`every_weeks`, for example 6).
+    - `per_paycheck`: the income source (`income_key`) whose pay dates it falls on.
+
+  Every other field except tolerance and note is required. A field nobody knows becomes an open question, never a guess (rule 6).
 - **`bill_aliases`**: names a bill shows up as in transactions.
 - **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first).
-- **`income_sources`**: person, amount, cadence (monthly or biweekly), one known pay date to count from, and the deposit account.
+- **`income_sources`**: person, amount, cadence (monthly or biweekly), one known pay date to count from, and the deposit account. The known pay date is the scheduled one: a pay date on a weekend or bank holiday is paid the bank business day before.
+- **`transfers`**: planned moves between the household's own accounts, such as Joint to Bill Pay each payday. Each has a from-account, a to-account, an amount and a schedule, with the same cadences as bills. They move money in the projection but are never bills and never matched.
 - **`api_keys`**: each key's name, scope and expiry date. Never the key itself. `current_api_keys` adds `days_left`.
 
 ## ledger
 
 Append-only. A trigger refuses every update, delete and truncate, even from the owner.
 
-- **`payments`**: a bill is paid only when a row here says so (rule 4). Each has the bill, the month it covers, amount, date, the Era transaction, and who confirmed it.
+- **`payments`**: a bill is paid only when a row here says so (rule 4). Each has the bill, the month it covers, the due date it pays (`due_on`), amount, date, the Era transaction, and who confirmed it. Week-based and per-paycheck bills pair on the due date; the others pair on the month.
 - **`balance_statements`**: a balance someone stated. It beats Era until Era reports a newer one (rule 3).
 - **`adjustments`**: named in the design without detail. No action writes here yet.
 - **`voids`**: cancels exactly one row above, with a reason. The original stays. The `*_effective` views leave voided rows out.
@@ -58,7 +66,7 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 
 Rebuilt by `refresh_all()` after every pull and every named action. Never edited. How each number is made, and the defaults used, are in [calculations.md](calculations.md).
 
-- **`bill_cycles`**: each bill in each due month, with its due date, expected amount and status (paid, pending match, not seen yet or late).
+- **`bill_cycles`**: each bill on each due date, with its due month, cadence, expected amount and status (paid, pending match, not seen yet or late). Month-based bills have one a month; week-based and per-paycheck bills can have several.
 - **`account_balances`**: the balance each account's numbers start from, whether it came from Era or a person, and whether it's older than 3 days.
 - **`cash_projection`**: each checking and savings account for 60 days: opening, money in, money out, closing, below zero, and what moved that day.
 - **`debt_snapshot`**: each debt's balance, APR, minimum, estimated monthly interest, promo end and payoff priority.
