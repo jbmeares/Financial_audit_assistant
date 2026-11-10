@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       while (Date.now() - started < 100_000) {
         // restartAt (an ISO time) runs the load again from the top, ignoring full runs before it.
         const month = await asIngest<string | null>(
-          "select raw.next_full_month(p_after := coalesce($1::timestamptz, '-infinity'))::text", [restartAt]);
+          "select raw.next_full_month_after(coalesce($1::timestamptz, '-infinity'))::text", [restartAt]);
         if (!month) return respond(200, { complete: true, results });
         const r = await runFullMonth(era, db, month);
         results.push({ month, ...r });

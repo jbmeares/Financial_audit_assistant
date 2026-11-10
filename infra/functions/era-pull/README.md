@@ -12,8 +12,8 @@ read key (`ERA_READ_KEY`) and writes the `raw` schema through the `raw.*` functi
 | `map.ts` | The only file that knows Era's field names. A missing field fails the run |
 | `pull.test.ts` | Tests with Era and the database faked. Run `./test` (Node 22+) |
 
-The SQL it calls is in `infra/migrations/20261109170000_pull_functions.sql`, tested by
-`infra/tests/06_pull_functions.sql`. The schedule is `20261109170100_pull_schedule.sql`.
+The SQL it calls is in `infra/migrations/20261109163152_pull_functions.sql`, tested by
+`infra/tests/06_pull_functions.sql`. The schedule is `20261110140100_pull_schedule.sql`.
 
 ## Modes
 

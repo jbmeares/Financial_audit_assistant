@@ -77,7 +77,7 @@ select pg_temp.check(raw.next_full_month('2026-08-15') is null, 'the floor stops
 insert into raw.pull_runs (kind, status, finished_at, window_start, window_end, counts) values
   ('full', 'ok', now(), '2026-08-01', '2026-08-31', '{"transactions_seen":0}');
 select pg_temp.check(raw.next_full_month() is null, 'two empty months in a row end the load');
-select pg_temp.check(raw.next_full_month(p_after := now() + interval '1 second') = date_trunc('month', now() at time zone 'America/New_York')::date,
+select pg_temp.check(raw.next_full_month_after(now() + interval '1 second') = date_trunc('month', now() at time zone 'America/New_York')::date,
   'a restart ignores earlier full runs and starts from the current month');
 
 -- Midnight in New York, across daylight saving.
