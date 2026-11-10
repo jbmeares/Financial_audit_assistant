@@ -36,6 +36,7 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
     - `monthly`: a due day.
     - `every_other_month`, `quarterly`, `semiannual`, `annual`: a due day and one known due date.
     - `weekly`, `biweekly`: one known due date.
+    - `every_n_weeks`: one known due date and how many weeks apart (`every_weeks`, for example 6).
     - `per_paycheck`: the income source (`income_key`) whose pay dates it falls on.
 
   Every other field except tolerance and note is required. A field nobody knows becomes an open question, never a guess (rule 6).
@@ -49,7 +50,7 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
 
 Append-only. A trigger refuses every update, delete and truncate, even from the owner.
 
-- **`payments`**: a bill is paid only when a row here says so (rule 4). Each has the bill, the month it covers, the due date it pays (`due_on`), amount, date, the Era transaction, and who confirmed it. Weekly, biweekly and per-paycheck bills pair on the due date; the others pair on the month.
+- **`payments`**: a bill is paid only when a row here says so (rule 4). Each has the bill, the month it covers, the due date it pays (`due_on`), amount, date, the Era transaction, and who confirmed it. Week-based and per-paycheck bills pair on the due date; the others pair on the month.
 - **`balance_statements`**: a balance someone stated. It beats Era until Era reports a newer one (rule 3).
 - **`adjustments`**: named in the design without detail. No action writes here yet.
 - **`voids`**: cancels exactly one row above, with a reason. The original stays. The `*_effective` views leave voided rows out.
@@ -65,7 +66,7 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 
 Rebuilt by `refresh_all()` after every pull and every named action. Never edited. How each number is made, and the defaults used, are in [calculations.md](calculations.md).
 
-- **`bill_cycles`**: each bill on each due date, with its due month, cadence, expected amount and status (paid, pending match, not seen yet or late). Month-based bills have one a month; weekly, biweekly and per-paycheck bills can have several.
+- **`bill_cycles`**: each bill on each due date, with its due month, cadence, expected amount and status (paid, pending match, not seen yet or late). Month-based bills have one a month; week-based and per-paycheck bills can have several.
 - **`account_balances`**: the balance each account's numbers start from, whether it came from Era or a person, and whether it's older than 3 days.
 - **`cash_projection`**: each checking and savings account for 60 days: opening, money in, money out, closing, below zero, and what moved that day.
 - **`debt_snapshot`**: each debt's balance, APR, minimum, estimated monthly interest, promo end and payoff priority.

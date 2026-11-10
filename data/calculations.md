@@ -21,12 +21,12 @@ All five run as one unit. If any step fails, the whole unit is rolled back, so t
 - **Rows.** There is one row for each bill on each due date, from the bill's first version to the end of the month two months ahead.
     - Monthly bills: one row a month.
     - Every-other-month, quarterly, semiannual and annual bills: one row in each month they fall in, counted from their known due date.
-    - Weekly and biweekly bills: one row every 7 or 14 days from their known due date.
+    - Weekly, biweekly and every-N-weeks bills: one row every 7, 14 or 7 × N days from their known due date (every 6 weeks is every 42 days).
     - Per-paycheck bills: one row on each pay date of their income source, after the pay date moves off a weekend or holiday.
 - **Due dates.** A due day past the end of a short month moves to the month's last day, so the 31st becomes Feb 28.
 - **Which version.** Each due date uses the version of the bill in effect on that date. If a due-day change leaves no version covering its own due date that month, the newest version is used, so the month doesn't vanish. A bill that ended has no cycles after it ends.
 - **Status.**
-  - `paid`: a ledger payment exists, for the same month (month-based bills) or the same due date (weekly, biweekly and per-paycheck bills). Month-based bills pair by month so a later change of due day doesn't unpay a month.
+  - `paid`: a ledger payment exists, for the same month (month-based bills) or the same due date (week-based and per-paycheck bills). Month-based bills pair by month so a later change of due day doesn't unpay a month.
   - `pending_match`: a proposal is waiting.
   - `late`: the due month ended with neither a payment nor a proposal. This holds for every cadence (rule 4).
   - `not_seen_yet`: everything else.
@@ -40,10 +40,10 @@ The matcher looks at money-out transactions from the last 45 days that aren't pa
 | --- | --- |
 | 30 | It came from the bill's account |
 | 40 | The amount is within tolerance: the bill's own, else $0.01 for fixed and 15% for variable |
-| 20 | It falls in the cycle's window: 7 days before to 7 days after the due month; for weekly bills 3 days either side of the due date; for biweekly and per-paycheck bills 6 days before to 7 days after |
+| 20 | It falls in the cycle's window: 7 days before to 7 days after the due month; for week-based and per-paycheck bills, the cycle's share of the days around its due date (weekly: 3 days either side; biweekly and per paycheck: 6 before to 7 after; every 6 weeks: 20 before to 21 after) |
 | 10 | The merchant contains an alias, or Era tagged it `bill:<key or name>` |
 
-- **Which cycle.** The nearest unpaid one, preferring one whose window holds the date. For weekly, biweekly and per-paycheck bills, a cycle that already has a proposal waiting is picked last. Each proposal records the due date it would pay.
+- **Which cycle.** The nearest unpaid one, preferring one whose window holds the date. For week-based and per-paycheck bills, a cycle that already has a proposal waiting is picked last. Each proposal records the due date it would pay.
 - **What gets proposed.** The best bill is proposed if it scores 70 or more. If two bills tie at the top, both are proposed as `ambiguous` (rule 5).
 - **What never happens.**
   - A transaction with a proposal still waiting gets no new one.

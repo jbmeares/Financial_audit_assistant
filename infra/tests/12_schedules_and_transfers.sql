@@ -9,7 +9,7 @@ begin;
 --   A monthly income of 2,000.00 on the 1st into checking. Mar 1 2026 is a Sunday, so it pays Fri Feb 27.
 --   Transfers from checking to bill pay: 700.00 each paycheck, 1,500.00 each monthly payday.
 --   Bills from bill pay: 500.00 each paycheck, 200.00 weekly from Mon Feb 2, and 90.00 every other
---   month on the 3rd (Mar, May, ...).
+--   month on the 3rd (Mar, May, ...). From checking: 75.00 every 6 weeks from Tue Jan 20.
 insert into raw.era_accounts (era_account_id, payload, content_hash) values ('era-bp', '{}', 'h');
 insert into raw.era_balances (era_account_id, current, available, as_of, payload)
 values ('era-bp', 1000.00, 1000.00, '2026-02-09 12:00-05', '{}');
@@ -24,6 +24,8 @@ insert into ref.bills (bill_key, name, amount, amount_kind, due_day, account_key
   ('auto', 'Auto loan', 500.00, 'fixed', null, 'bp', false, 'per_paycheck', null, 'pay', '2026-02-01'),
   ('school', 'School', 200.00, 'fixed', null, 'bp', false, 'weekly', '2026-02-02', null, '2026-02-01'),
   ('trash', 'Trash', 90.00, 'fixed', 3, 'bp', true, 'every_other_month', '2026-01-03', null, '2026-02-01');
+insert into ref.bills (bill_key, name, amount, amount_kind, account_key, autopay, cadence, cadence_anchor, every_weeks, valid_from)
+values ('pest', 'Pest control', 75.00, 'fixed', 'chk', false, 'every_n_weeks', '2026-01-20', 6, '2026-02-01');
 insert into ref.bill_aliases (bill_key, alias, valid_from) values ('school', 'little sprouts', '2026-01-01');
 insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant)
 values ('tx-school', 'era-bp', '{}', 'h', -200.00, '2026-02-09', false, 'LITTLE SPROUTS');
@@ -49,12 +51,18 @@ select pg_temp.check((select array_agg(d order by d) from calc._pay_dates('month
   'Sun Nov 1 moves to Oct 30, which is before the range, so it isn''t counted twice');
 
 -- Schedules.
-select pg_temp.check((select array_agg(d order by d) from calc._schedule_dates('every_other_month', 3, '2026-01-03', null, '2026-01-01', '2026-06-30') d)
+select pg_temp.check((select array_agg(d order by d) from calc._schedule_dates('every_other_month', 3, '2026-01-03', null, null, '2026-01-01', '2026-06-30') d)
                      = '{2026-01-03,2026-03-03,2026-05-03}', 'every other month counts from its known due date');
-select pg_temp.check((select array_agg(d order by d) from calc._schedule_dates('biweekly', null, '2026-02-02', null, '2026-02-01', '2026-03-02') d)
+select pg_temp.check((select array_agg(d order by d) from calc._schedule_dates('biweekly', null, '2026-02-02', null, null, '2026-02-01', '2026-03-02') d)
                      = '{2026-02-02,2026-02-16,2026-03-02}', 'biweekly is every 14 days from its known date');
-select pg_temp.check((select array_agg(d order by d) from calc._schedule_dates('per_paycheck', null, null, 'monthly-pay', '2026-02-01', '2026-04-30') d)
+select pg_temp.check((select array_agg(d order by d) from calc._schedule_dates('per_paycheck', null, null, null, 'monthly-pay', '2026-02-01', '2026-04-30') d)
                      = '{2026-02-27,2026-04-01}', 'per paycheck follows the moved pay dates');
+select pg_temp.check((select array_agg(d order by d) from calc._schedule_dates('every_n_weeks', null, '2026-01-20', 6, null, '2026-01-01', '2026-06-30') d)
+                     = '{2026-01-20,2026-03-03,2026-04-14,2026-05-26}', 'every 6 weeks is every 42 days from its known date');
+select pg_temp.check(calc._match_window('every_n_weeks', 6, '2026-03-01', '2026-03-03') = daterange('2026-02-11', '2026-03-24', '[]')
+                     and calc._match_window('weekly', null, '2026-02-01', '2026-02-09') = daterange('2026-02-06', '2026-02-12', '[]')
+                     and calc._match_window('per_paycheck', null, '2026-02-01', '2026-02-13') = daterange('2026-02-07', '2026-02-20', '[]'),
+  'week-based match windows split the days between due dates');
 
 select calc.refresh_all(null, '2026-02-10');
 
@@ -65,6 +73,10 @@ select pg_temp.check((select count(*) = 4 from calc.bill_cycles where bill_key =
   'a weekly bill falls due four times in February');
 select pg_temp.check((select array_agg(due_on order by due_on) from calc.bill_cycles where bill_key = 'trash') = '{2026-03-03}',
   'every other month: March only, through April');
+select pg_temp.check((select array_agg(due_on order by due_on) from calc.bill_cycles where bill_key = 'pest') = '{2026-03-03,2026-04-14}',
+  'every 6 weeks: Mar 3 and Apr 14, through April');
+select pg_temp.check((select money_out = 75.00 from calc.cash_projection where account_key = 'chk' and day = '2026-03-03'),
+  'the every-6-weeks bill comes out of checking Mar 3');
 select pg_temp.check((select cadence = 'weekly' from calc.bill_cycles where bill_key = 'school' and due_on = '2026-02-09'),
   'each cycle says its cadence');
 
@@ -119,6 +131,9 @@ select pg_temp.expect_error(null, $$select actions.update_bill('james', 'bad-aut
 select pg_temp.expect_error(null, $$select actions.update_bill('james', 'bad-week',
   '{"name": "X", "amount": 1, "amount_kind": "fixed", "account_key": "bp", "autopay": false, "cadence": "weekly"}')$$,
   '%weekly or biweekly (need a cadence_anchor date)%', 'a weekly bill with no known date is refused');
+select pg_temp.expect_error(null, $$select actions.update_bill('james', 'bad-weeks',
+  '{"name": "X", "amount": 1, "amount_kind": "fixed", "account_key": "bp", "autopay": false, "cadence": "every_n_weeks", "cadence_anchor": "2026-01-20"}')$$,
+  '%every_n_weeks (needs a cadence_anchor date and every_weeks%', 'an every-n-weeks bill with no week count is refused');
 select pg_temp.expect_error(null, $$select actions.update_bill('james', 'bad-cadence',
   '{"name": "X", "amount": 1, "amount_kind": "fixed", "due_day": 1, "account_key": "bp", "autopay": false, "cadence": "daily"}')$$,
   '%isn''t allowed%', 'an unknown cadence is refused');

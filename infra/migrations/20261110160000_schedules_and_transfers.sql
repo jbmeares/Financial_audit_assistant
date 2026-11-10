@@ -1,16 +1,17 @@
 -- G1 follow-up. What the money interview needs that Blocks C and E didn't have:
 --   1. Planned transfers between the household's own accounts (ref.transfers), in the cash projection.
---   2. More bill schedules: every_other_month, weekly, biweekly and per_paycheck (on each pay date
---      of one income source). Weekly, biweekly and per-paycheck bills can fall due more than once
---      a month, so a bill cycle is now one due date, not one month.
+--   2. More bill schedules: every_other_month, weekly, biweekly, every_n_weeks (for example every
+--      6 weeks) and per_paycheck (on each pay date of one income source). The week-based and
+--      per-paycheck bills can fall due more than once a month, so a bill cycle is now one due date,
+--      not one month.
 --   3. Pay dates that land on a weekend or a bank holiday move to the bank business day before.
 --
 -- Nothing here removes a constraint or an object, because the Supabase confirm dialog for
 -- destructive statements doesn't open for James. The old checks that allow only the four
 -- month-based cadences, the old one-cycle-per-month key on calc.bill_cycles and due_day's
 -- NOT NULL are lifted by the next migration, which James runs in the SQL editor. Until then
--- everything here works for month-based bills, and a weekly, biweekly or per-paycheck bill is
--- refused at insert.
+-- everything here works for month-based bills, and a week-based or per-paycheck bill is refused
+-- at insert.
 
 -- ---------------------------------------------------------------- 3. bank business days
 
@@ -73,7 +74,7 @@ $$;
 -- Cadences counted by due date rather than by month. They can fall due more than once a month.
 create function calc._is_date_cadence(p_cadence text) returns boolean
 language sql immutable set search_path = ''
-as $$ select p_cadence in ('weekly', 'biweekly', 'per_paycheck') $$;
+as $$ select p_cadence in ('weekly', 'biweekly', 'every_n_weeks', 'per_paycheck') $$;
 
 -- Month-based cadences: whether one falls due in p_month, counted from one known due date.
 create or replace function calc._cadence_due(p_cadence text, p_anchor date, p_month date) returns boolean
@@ -91,10 +92,11 @@ $$;
 -- Every date a schedule falls on between p_from and p_to. Shared by bills and transfers.
 --   monthly: p_day each month. every_other_month, quarterly, semiannual, annual: p_day in the
 --     months counted from p_anchor. A day past the end of a short month moves to its last day.
---   weekly, biweekly: every 7 or 14 days from p_anchor.
+--   weekly, biweekly, every_n_weeks: every 7, 14 or 7 x p_every_weeks days from p_anchor.
 --   per_paycheck: each pay date of income source p_income_key (already moved off weekends and
 --     holidays), using the version of the income source in effect on that date.
-create function calc._schedule_dates(p_cadence text, p_day int, p_anchor date, p_income_key text, p_from date, p_to date)
+create function calc._schedule_dates(p_cadence text, p_day int, p_anchor date, p_every_weeks int, p_income_key text,
+                                      p_from date, p_to date)
 returns setof date
 language sql stable set search_path = ''
 as $$
@@ -105,7 +107,7 @@ as $$
      and calc._day_in_month(m::date, p_day) between p_from and p_to
   union all
   select p_anchor + s.step * k
-    from (select case p_cadence when 'weekly' then 7 when 'biweekly' then 14 end as step) s,
+    from (select case p_cadence when 'weekly' then 7 when 'biweekly' then 14 when 'every_n_weeks' then 7 * p_every_weeks end as step) s,
          generate_series(ceil((p_from - p_anchor) / s.step::numeric)::int, floor((p_to - p_anchor) / s.step::numeric)::int) k
    where s.step is not null
   union all
@@ -117,29 +119,35 @@ $$;
 
 -- The dates a payment can land on and still count for a cycle.
 --   Month-based: from 7 days before the due month to 7 days after it (as before).
---   weekly: 3 days either side of the due date. biweekly, per_paycheck: 6 days before to 7 after.
-create function calc._match_window(p_cadence text, p_due_month date, p_due_on date) returns daterange
+--   Week-based and per-paycheck: the cycle's share of the days around its due date, so the windows
+--   of one bill's cycles touch but don't overlap. weekly: 3 days either side. biweekly and
+--   per_paycheck: 6 days before to 7 after. Every 6 weeks: 20 days before to 21 after.
+create function calc._match_window(p_cadence text, p_every_weeks int, p_due_month date, p_due_on date) returns daterange
 language sql immutable set search_path = ''
 as $$
   select case
-    when p_cadence = 'weekly' then daterange(p_due_on - 3, p_due_on + 3, '[]')
-    when p_cadence in ('biweekly', 'per_paycheck') then daterange(p_due_on - 6, p_due_on + 7, '[]')
+    when p.days is not null then daterange(p_due_on - (p.days - 1) / 2, p_due_on + (p.days - 1) - (p.days - 1) / 2, '[]')
     else daterange(p_due_month - 7, calc._month_end(p_due_month) + 7, '[]')
   end
+  from (select case p_cadence when 'weekly' then 7 when 'biweekly' then 14 when 'per_paycheck' then 14
+                              when 'every_n_weeks' then 7 * p_every_weeks end as days) p
 $$;
 
 -- ref.bills: the income source a per-paycheck bill follows, and the rule for which fields each
 -- cadence needs. This check also lists the cadences allowed.
 alter table ref.bills add column income_key text;
+alter table ref.bills add column every_weeks smallint check (every_weeks between 1 and 52);
+comment on column ref.bills.every_weeks is 'For cadence every_n_weeks: how many weeks apart (6 = every 6 weeks).';
 comment on column ref.bills.income_key is 'For cadence per_paycheck: the income source whose pay dates it falls due on.';
-comment on column ref.bills.cadence is 'monthly, every_other_month, quarterly, semiannual, annual (due_day in the month), weekly, biweekly (every 7 or 14 days from cadence_anchor), or per_paycheck (each pay date of income_key).';
-comment on column ref.bills.cadence_anchor is 'One known due date. Needed for every_other_month, quarterly, semiannual, annual, weekly and biweekly.';
-comment on column ref.bills.due_day is 'Day of the month it is due, for the month-based cadences. Past the end of a short month, it moves to the last day. Not used by weekly, biweekly or per_paycheck.';
+comment on column ref.bills.cadence is 'monthly, every_other_month, quarterly, semiannual, annual (due_day in the month), weekly, biweekly, every_n_weeks (every 1, 2 or every_weeks weeks from cadence_anchor), or per_paycheck (each pay date of income_key).';
+comment on column ref.bills.cadence_anchor is 'One known due date. Needed for every_other_month, quarterly, semiannual, annual, weekly, biweekly and every_n_weeks.';
+comment on column ref.bills.due_day is 'Day of the month it is due, for the month-based cadences. Past the end of a short month, it moves to the last day. Not used by the week-based cadences or per_paycheck.';
 alter table ref.bills add constraint bills_schedule check (
   case
     when cadence = 'monthly' then due_day is not null
     when cadence in ('every_other_month', 'quarterly', 'semiannual', 'annual') then due_day is not null and cadence_anchor is not null
     when cadence in ('weekly', 'biweekly') then cadence_anchor is not null
+    when cadence = 'every_n_weeks' then cadence_anchor is not null and every_weeks is not null
     when cadence = 'per_paycheck' then income_key is not null
     else false
   end);
@@ -151,10 +159,10 @@ create or replace view ref.current_bills with (security_invoker = true) as
   where valid_from <= current_date and (valid_to is null or valid_to > current_date);
 
 -- Which occurrence a payment or a proposal is for. Month-based bills still pair by month, so a
--- later change of due day doesn't unpay a month; weekly, biweekly and per-paycheck bills pair by
+-- later change of due day doesn't unpay a month; week-based and per-paycheck bills pair by
 -- this date. Null on rows written before this column existed.
 alter table ledger.payments add column due_on date;
-comment on column ledger.payments.due_on is 'The due date of the cycle it pays. Weekly, biweekly and per-paycheck bills pair on this; month-based bills pair on due_month.';
+comment on column ledger.payments.due_on is 'The due date of the cycle it pays. Week-based and per-paycheck bills pair on this; month-based bills pair on due_month.';
 create index payments_bill_due_on on ledger.payments (bill_key, due_on);
 alter table knowledge.proposed_matches add column due_on date;
 comment on column knowledge.proposed_matches.due_on is 'The due date of the cycle it would pay.';
@@ -164,7 +172,9 @@ create or replace view ledger.payments_effective with (security_invoker = true) 
   where not exists (select 1 from ledger.voids v where v.payment_id = p.id);
 
 alter table calc.bill_cycles add column cadence text;
-comment on column calc.bill_cycles.cadence is 'The cadence of the bill version used. Weekly, biweekly and per_paycheck bills have one row per due date, so more than one a month.';
+alter table calc.bill_cycles add column every_weeks smallint;
+comment on column calc.bill_cycles.cadence is 'The cadence of the bill version used. Week-based and per_paycheck bills have one row per due date, so they can have more than one a month.';
+comment on column calc.bill_cycles.every_weeks is 'For every_n_weeks: how many weeks apart.';
 comment on table calc.bill_cycles is 'Each bill on each due date (one a month for month-based cadences). paid = a ledger payment exists; pending_match = a proposal waits; late = the due month ended unpaid; otherwise not_seen_yet.';
 
 -- ---------------------------------------------------------------- 1. transfers
@@ -179,6 +189,7 @@ create table ref.transfers (
   cadence           text not null,
   day_of_month      smallint check (day_of_month between 1 and 31),
   cadence_anchor    date,
+  every_weeks       smallint check (every_weeks between 1 and 52),
   income_key        text,
   note              text,
   valid_from        date not null default current_date,
@@ -191,6 +202,7 @@ create table ref.transfers (
       when cadence = 'monthly' then day_of_month is not null
       when cadence in ('every_other_month', 'quarterly', 'semiannual', 'annual') then day_of_month is not null and cadence_anchor is not null
       when cadence in ('weekly', 'biweekly') then cadence_anchor is not null
+      when cadence = 'every_n_weeks' then cadence_anchor is not null and every_weeks is not null
       when cadence = 'per_paycheck' then income_key is not null
       else false
     end)
@@ -221,7 +233,7 @@ create policy assistant_reads on ref.transfers for select to assistant_read usin
 -- Month-based cadences: one row a month. Each month uses the version in effect on its own due
 --   date. If a change of due day leaves no version covering its own due date that month, the
 --   newest version overlapping the month is used, as long as the bill hadn't ended by then.
--- weekly, biweekly, per_paycheck: one row per date, from the version in effect on that date.
+-- weekly, biweekly, every_n_weeks, per_paycheck: one row per date, from the version in effect on that date.
 -- Paid: a ledger payment for the same month (month-based) or the same due date (the others).
 -- Status here is paid or not; refresh_all sets pending_match and late after the matcher runs.
 create or replace function calc._build_bill_cycles(p_today date) returns int
@@ -234,7 +246,7 @@ begin
   delete from calc.bill_cycles;
 
   insert into calc.bill_cycles (bill_key, due_month, due_on, bill_name, account_key, amount_kind, autopay,
-                                expected_amount, status, payment_id, bill_version_id, cadence)
+                                expected_amount, status, payment_id, bill_version_id, cadence, every_weeks)
   with starts as (
     select bill_key, min(valid_from) as start_on from ref.bills group by bill_key
   ), months as (
@@ -243,7 +255,7 @@ begin
            generate_series(date_trunc('month', s.start_on), date_trunc('month', p_today) + interval '2 months', interval '1 month') m
   ), candidates as (
     select m.bill_key, m.due_month, b.id, b.name, b.account_key, b.amount_kind, b.autopay, b.amount, b.valid_from, b.valid_to,
-           b.cadence, calc._day_in_month(m.due_month, b.due_day) as due_on
+           b.cadence, b.every_weeks, calc._day_in_month(m.due_month, b.due_day) as due_on
       from months m
       join ref.bills b
         on b.bill_key = m.bill_key
@@ -261,22 +273,23 @@ begin
                       c.valid_from desc, c.id desc) as rn
       from candidates c
   ), cycles as (
-    select r.bill_key, r.due_month, r.due_on, r.name, r.account_key, r.amount_kind, r.autopay, r.amount, r.id, r.cadence
+    select r.bill_key, r.due_month, r.due_on, r.name, r.account_key, r.amount_kind, r.autopay, r.amount, r.id, r.cadence, r.every_weeks
       from ranked r
      where r.rn = 1
        and (r.covers_due
             or exists (select 1 from ref.bills b2
                         where b2.bill_key = r.bill_key and (b2.valid_to is null or b2.valid_to > r.due_on)))
     union all
-    select b.bill_key, date_trunc('month', d)::date, d, b.name, b.account_key, b.amount_kind, b.autopay, b.amount, b.id, b.cadence
+    select b.bill_key, date_trunc('month', d)::date, d, b.name, b.account_key, b.amount_kind, b.autopay, b.amount, b.id, b.cadence,
+           b.every_weeks
       from ref.bills b,
-           calc._schedule_dates(b.cadence, b.due_day, b.cadence_anchor, b.income_key, b.valid_from,
+           calc._schedule_dates(b.cadence, b.due_day, b.cadence_anchor, b.every_weeks, b.income_key, b.valid_from,
                                 least(coalesce(b.valid_to - 1, v_horizon), v_horizon)) d
      where calc._is_date_cadence(b.cadence)
   )
   select c.bill_key, c.due_month, c.due_on, c.name, c.account_key, c.amount_kind, c.autopay, c.amount,
          case when p.payment_id is not null then 'paid' else 'not_seen_yet' end,
-         p.payment_id, c.id, c.cadence
+         p.payment_id, c.id, c.cadence, c.every_weeks
     from cycles c
     left join lateral (
       select min(pe.id) as payment_id
@@ -319,8 +332,8 @@ $$;
 -- ---------------------------------------------------------------- the matcher
 
 -- As before (see calculations.md), with two changes for bills that fall due more than once a
--- month: the date points use calc._match_window (a few days around the due date for weekly,
--- biweekly and per-paycheck bills), and among those bills' cycles one with a proposal already
+-- month: the date points use calc._match_window (the days around the due date for week-based
+-- and per-paycheck bills), and among those bills' cycles one with a proposal already
 -- waiting is picked last. Each proposal records the due date of the cycle it would pay.
 create or replace function calc._run_matcher(p_today date) returns int
 language plpgsql set search_path = ''
@@ -365,12 +378,12 @@ begin
       cross join bills b
       -- The cycle it would pay: the nearest unpaid one, preferring one whose window holds the date.
       join lateral (
-        select c.due_month, c.due_on, calc._match_window(c.cadence, c.due_month, c.due_on) as win
+        select c.due_month, c.due_on, calc._match_window(c.cadence, c.every_weeks, c.due_month, c.due_on) as win
           from calc.bill_cycles c
          where c.bill_key = b.bill_key
            and c.status <> 'paid'
            and abs(tx.occurred_on - c.due_on) <= 45
-         order by (tx.occurred_on <@ calc._match_window(c.cadence, c.due_month, c.due_on)) desc,
+         order by (tx.occurred_on <@ calc._match_window(c.cadence, c.every_weeks, c.due_month, c.due_on)) desc,
                   (calc._is_date_cadence(c.cadence)
                    and exists (select 1 from knowledge.proposed_matches m
                                 where m.bill_key = c.bill_key and m.status in ('pending', 'ambiguous')
@@ -435,7 +448,7 @@ as $$
   ), transfers as (
     select t.transfer_key as key, t.name, t.from_account_key, t.to_account_key, t.amount, td as day
       from ref.transfers t, params,
-           calc._schedule_dates(t.cadence, t.day_of_month, t.cadence_anchor, t.income_key,
+           calc._schedule_dates(t.cadence, t.day_of_month, t.cadence_anchor, t.every_weeks, t.income_key,
                                 greatest(params.d0, t.valid_from), least(params.d1, coalesce(t.valid_to - 1, params.d1))) td
   ), bills as (
     select c.account_key, greatest(c.due_on, params.d0) as day, 'bill'::text as kind, c.bill_key as key, c.bill_name as name,
@@ -776,7 +789,7 @@ begin
 end
 $$;
 
--- update_bill: as before, plus income_key, and due_day is needed only by the month-based cadences
+-- update_bill: as before, plus every_weeks and income_key, and due_day is needed only by the month-based cadences
 -- (the bills_schedule check says which fields each cadence needs).
 create or replace function actions.update_bill(
   p_person          text,
@@ -796,7 +809,7 @@ declare
   v_args      jsonb := jsonb_build_object('person', v_person, 'bill_key', p_bill_key, 'changes', v_changes,
                                           'effective_from', p_effective_from, 'end', p_end);
   v_allowed   text[] := array['name', 'amount', 'amount_kind', 'tolerance', 'due_day', 'account_key',
-                              'autopay', 'cadence', 'cadence_anchor', 'income_key', 'note'];
+                              'autopay', 'cadence', 'cadence_anchor', 'every_weeks', 'income_key', 'note'];
   v_required  text[] := array['name', 'amount', 'amount_kind', 'account_key', 'autopay', 'cadence'];
   v_bad       text;
   v_prior     jsonb;
@@ -862,13 +875,13 @@ begin
 
   begin
     insert into ref.bills (bill_key, name, amount, amount_kind, tolerance, due_day, account_key, autopay,
-                           cadence, cadence_anchor, income_key, note, valid_from)
+                           cadence, cadence_anchor, every_weeks, income_key, note, valid_from)
     values (p_bill_key, v_new.name, v_new.amount, v_new.amount_kind, v_new.tolerance, v_new.due_day, v_new.account_key,
-            v_new.autopay, v_new.cadence, v_new.cadence_anchor, v_new.income_key, v_new.note, v_from)
+            v_new.autopay, v_new.cadence, v_new.cadence_anchor, v_new.every_weeks, v_new.income_key, v_new.note, v_from)
     returning * into v_new;
   exception
     when check_violation or not_null_violation then
-      raise exception 'That bill has a value that isn''t allowed. Amounts are at least 0 and amount_kind is fixed or variable. Cadence is monthly (needs due_day), every_other_month, quarterly, semiannual or annual (need due_day and a cadence_anchor date), weekly or biweekly (need a cadence_anchor date), or per_paycheck (needs income_key). bill_key is lowercase letters, digits, - or _. Nothing was written.'
+      raise exception 'That bill has a value that isn''t allowed. Amounts are at least 0 and amount_kind is fixed or variable. Cadence is monthly (needs due_day), every_other_month, quarterly, semiannual or annual (need due_day and a cadence_anchor date), weekly or biweekly (need a cadence_anchor date), every_n_weeks (needs a cadence_anchor date and every_weeks, 1 to 52), or per_paycheck (needs income_key). bill_key is lowercase letters, digits, - or _. Nothing was written.'
         using errcode = 'P0001';
   end;
 
@@ -886,5 +899,5 @@ $$;
 
 -- New functions: no role but the owner. what_if, refresh_all and the actions keep their grants.
 revoke all on function calc._is_bank_holiday(date), calc._prev_business_day(date), calc._is_date_cadence(text),
-                       calc._schedule_dates(text, int, date, text, date, date), calc._match_window(text, date, date)
+                       calc._schedule_dates(text, int, date, int, text, date, date), calc._match_window(text, int, date, date)
   from public, anon, authenticated;
