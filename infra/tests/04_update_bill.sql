@@ -14,7 +14,10 @@ select pg_temp.check((select amount = 45.00 and due_day = 5 and autopay from ref
 
 -- A new bill needs every required field.
 select pg_temp.expect_error(null, $$select actions.update_bill('james', 'test-new', '{"name": "New", "amount": 10}')$$,
-  '%Missing: account_key, amount_kind, autopay, cadence, due_day%', 'a new bill with missing fields is refused');
+  '%Missing: account_key, amount_kind, autopay, cadence.%', 'a new bill with missing fields is refused');
+select pg_temp.expect_error(null, $$select actions.update_bill('james', 'test-new',
+  '{"name": "New", "amount": 10, "amount_kind": "variable", "account_key": "test-checking", "autopay": false, "cadence": "monthly"}')$$,
+  '%monthly (needs due_day)%', 'a monthly bill with no due day is refused');
 select actions.update_bill('james', 'test-new',
   '{"name": "New", "amount": 10, "amount_kind": "variable", "due_day": 31, "account_key": "test-checking", "autopay": false, "cadence": "monthly"}');
 select pg_temp.check(exists (select 1 from ref.current_bills where bill_key = 'test-new'), 'a new bill is created');
