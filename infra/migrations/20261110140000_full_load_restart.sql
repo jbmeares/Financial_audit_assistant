@@ -1,8 +1,11 @@
 -- D2. Let the history load be run again from the top (for example after a fix to how it
 -- reads Era) without touching earlier pull_runs rows: only full runs started after p_after count.
-drop function raw.next_full_month(date);
+--
+-- Added as raw.next_full_month_after, and raw.next_full_month now calls it. No DROP, because the
+-- Supabase confirm dialog for DROP statements doesn't open for James. A new name instead of a second
+-- form of next_full_month, because next_full_month('2026-08-15') would then pick the wrong one.
 
-create function raw.next_full_month(p_floor date default date '2000-01-01', p_after timestamptz default '-infinity')
+create function raw.next_full_month_after(p_after timestamptz, p_floor date default date '2000-01-01')
 returns date
 language sql
 stable
@@ -25,5 +28,14 @@ as $$
   end;
 $$;
 
-revoke all on function raw.next_full_month(date, timestamptz) from public, anon, authenticated;
-grant execute on function raw.next_full_month(date, timestamptz) to ingest;
+create or replace function raw.next_full_month(p_floor date default date '2000-01-01')
+returns date
+language sql
+stable
+set search_path = ''
+as $$
+  select raw.next_full_month_after('-infinity'::timestamptz, p_floor);
+$$;
+
+revoke all on function raw.next_full_month_after(timestamptz, date) from public, anon, authenticated;
+grant execute on function raw.next_full_month_after(timestamptz, date) to ingest;
