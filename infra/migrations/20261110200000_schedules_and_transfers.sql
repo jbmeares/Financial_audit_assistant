@@ -331,10 +331,18 @@ $$;
 
 -- ---------------------------------------------------------------- the matcher
 
--- As before (see calculations.md), with two changes for bills that fall due more than once a
--- month: the date points use calc._match_window (the days around the due date for week-based
--- and per-paycheck bills), and among those bills' cycles one with a proposal already
--- waiting is picked last. Each proposal records the due date of the cycle it would pay.
+-- The matcher from 20261110190000_matcher_on_real_data (skip transfers, fees and interest; need a
+-- name or the exact amount; a transaction that names a bill is only proposed for bills it names;
+-- the payment must sit in the cycle's window; withdrawn proposals can come back), with three
+-- changes for bills that fall due more than once a month:
+--   * The window is calc._match_window: the due month plus 7 days each side for month-based bills,
+--     as before, and the cycle's share of the days around its due date for week-based and
+--     per-paycheck bills.
+--   * The "nearer this due date than the previous one" check stays for month-based bills (with
+--     every_other_month 2 months apart). Week-based and per-paycheck windows don't overlap, so
+--     they don't need it.
+--   * Among a week-based or per-paycheck bill's cycles, one with a proposal already waiting is
+--     picked last. Each proposal records the due date it would pay.
 create or replace function calc._run_matcher(p_today date) returns int
 language plpgsql set search_path = ''
 as $$
@@ -343,62 +351,85 @@ declare
 begin
   insert into knowledge.proposed_matches (era_transaction_id, bill_key, due_month, due_on, score, reason, status)
   with tx as (
-    select t.era_transaction_id, t.era_account_id, abs(t.amount) as amount, t.occurred_on, t.merchant,
+    select t.era_transaction_id, t.era_account_id, abs(t.amount) as amount, t.occurred_on,
+           lower(concat_ws(' ', t.merchant, t.payload ->> 'description')) as name_text,
            calc._tx_tags(t.payload) as tags
       from raw.era_transactions t
      where t.amount < 0
        and t.removed_at is null
        and t.occurred_on between p_today - 45 and p_today
+       and calc._not_a_bill_reason(t.payload, p_today) is null
        and not exists (select 1 from knowledge.proposed_matches m
                         where m.era_transaction_id = t.era_transaction_id
                           and m.status in ('pending', 'ambiguous', 'confirmed'))
        and not exists (select 1 from ledger.payments_effective p where p.era_transaction_id = t.era_transaction_id)
   ), bills as (
     select b.bill_key, b.name, b.amount, b.amount_kind,
+           case b.cadence when 'every_other_month' then 2 when 'quarterly' then 3 when 'semiannual' then 6
+                          when 'annual' then 12 else 1 end as months_apart,
            coalesce(b.tolerance, case b.amount_kind when 'fixed' then 0.01 else round(b.amount * 0.15, 2) end) as tolerance,
            a.era_account_id
       from ref.bills b
       left join ref.accounts a
         on a.account_key = b.account_key and a.valid_from <= p_today and (a.valid_to is null or a.valid_to > p_today)
      where b.valid_from <= p_today and (b.valid_to is null or b.valid_to > p_today)
+  ), named as (
+    select tx.era_transaction_id, b.bill_key,
+           exists (select 1 from ref.bill_aliases al
+                    where al.bill_key = b.bill_key
+                      and al.valid_from <= p_today and (al.valid_to is null or al.valid_to > p_today)
+                      and position(lower(al.alias) in tx.name_text) > 0)
+             or ('bill:' || lower(b.bill_key)) = any (tx.tags)
+             or ('bill:' || lower(b.name)) = any (tx.tags) as has_name
+      from tx cross join bills b
+  ), named_any as (
+    -- Whether the transaction names any current bill, before cycles are looked at: a charge that
+    -- names a bill already paid this month still isn't proposed for another bill.
+    select n.*, bool_or(n.has_name) over (partition by n.era_transaction_id) as tx_names_a_bill
+      from named n
   ), scored as (
     select tx.era_transaction_id, b.bill_key, cy.due_month, cy.due_on,
            case when b.era_account_id = tx.era_account_id then 30 else 0 end as s_account,
            case when abs(tx.amount - b.amount) <= b.tolerance then 40 else 0 end as s_amount,
-           case when tx.occurred_on <@ cy.win then 20 else 0 end as s_date,
-           case when exists (select 1 from ref.bill_aliases al
-                              where al.bill_key = b.bill_key
-                                and al.valid_from <= p_today and (al.valid_to is null or al.valid_to > p_today)
-                                and position(lower(al.alias) in lower(coalesce(tx.merchant, ''))) > 0)
-                  or ('bill:' || lower(b.bill_key)) = any (tx.tags)
-                  or ('bill:' || lower(b.name)) = any (tx.tags)
-                then 10 else 0 end as s_name,
+           20 as s_date,
+           case when n.has_name then 10 else 0 end as s_name,
+           tx.amount = b.amount as exact,
+           n.tx_names_a_bill,
            tx.amount as tx_amount, b.amount as bill_amount, tx.occurred_on
       from tx
       cross join bills b
-      -- The cycle it would pay: the nearest unpaid one, preferring one whose window holds the date.
+      join named_any n on n.era_transaction_id = tx.era_transaction_id and n.bill_key = b.bill_key
+      -- The cycle it would pay: an unpaid one whose window holds the date, the nearest due date first.
       join lateral (
-        select c.due_month, c.due_on, calc._match_window(c.cadence, c.every_weeks, c.due_month, c.due_on) as win
+        select c.due_month, c.due_on
           from calc.bill_cycles c
          where c.bill_key = b.bill_key
            and c.status <> 'paid'
-           and abs(tx.occurred_on - c.due_on) <= 45
-         order by (tx.occurred_on <@ calc._match_window(c.cadence, c.every_weeks, c.due_month, c.due_on)) desc,
-                  (calc._is_date_cadence(c.cadence)
+           and tx.occurred_on <@ calc._match_window(c.cadence, c.every_weeks, c.due_month, c.due_on)
+           and (calc._is_date_cadence(c.cadence)
+                or abs(tx.occurred_on - c.due_on) <= abs(tx.occurred_on - (c.due_on - make_interval(months => b.months_apart))::date))
+         order by (calc._is_date_cadence(c.cadence)
                    and exists (select 1 from knowledge.proposed_matches m
                                 where m.bill_key = c.bill_key and m.status in ('pending', 'ambiguous')
                                   and coalesce(m.due_on = c.due_on, m.due_month = c.due_month))),
                   abs(tx.occurred_on - c.due_on), c.due_on
          limit 1
       ) cy on true
+     -- A pairing already made is never proposed again, unless it was withdrawn (rejected by nobody).
      where not exists (select 1 from knowledge.proposed_matches m
-                        where m.era_transaction_id = tx.era_transaction_id and m.bill_key = b.bill_key)
-  ), ranked as (
-    select s.*, s.s_account + s.s_amount + s.s_date + s.s_name as score,
-           max(s.s_account + s.s_amount + s.s_date + s.s_name) over (partition by s.era_transaction_id) as top,
-           count(*) filter (where s.s_account + s.s_amount + s.s_date + s.s_name >= 70)
-             over (partition by s.era_transaction_id, s.s_account + s.s_amount + s.s_date + s.s_name) as tied
+                        where m.era_transaction_id = tx.era_transaction_id and m.bill_key = b.bill_key
+                          and not (m.status = 'rejected' and m.decided_by is null))
+  ), eligible as (
+    select s.*, s.s_account + s.s_amount + s.s_date + s.s_name as score
       from scored s
+     where (s.s_name > 0 or (s.exact and s.s_account > 0))
+       and (s.s_name > 0 or not s.tx_names_a_bill)
+  ), ranked as (
+    select e.*,
+           max(e.score) over (partition by e.era_transaction_id) as top,
+           count(*) over (partition by e.era_transaction_id, e.score) as tied
+      from eligible e
+     where e.score >= 70
   )
   select r.era_transaction_id, r.bill_key, r.due_month, r.due_on, r.score,
          concat_ws('; ',
@@ -408,8 +439,11 @@ begin
            'name ' || r.s_name),
          case when r.tied > 1 then 'ambiguous' else 'pending' end
     from ranked r
-   where r.score >= 70 and r.score = r.top
-  on conflict (era_transaction_id, bill_key) do nothing;
+   where r.score = r.top
+  on conflict (era_transaction_id, bill_key) do update
+     set due_month = excluded.due_month, due_on = excluded.due_on, score = excluded.score, reason = excluded.reason,
+         status = excluded.status, created_at = now(), decided_at = null, decision_note = null
+   where knowledge.proposed_matches.status = 'rejected' and knowledge.proposed_matches.decided_by is null;
 
   get diagnostics v_count = row_count;
   return v_count;

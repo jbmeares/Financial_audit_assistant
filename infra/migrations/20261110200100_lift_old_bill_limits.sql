@@ -1,7 +1,7 @@
--- Lifts the three Block C/E limits that 20261110160000 couldn't, because lifting them takes a DROP
+-- Lifts the three Block C/E limits that 20261110200000 couldn't, because lifting them takes a DROP
 -- and the Supabase confirm dialog for DROP statements doesn't open for James. He runs this one in
 -- the SQL editor. Nothing is lost: ref.bills and calc.bill_cycles keep every row, and the
--- bills_schedule check added in 20261110160000 already enforces the new rules.
+-- bills_schedule check added in 20261110200000 already enforces the new rules.
 --
 -- 1. bills_cadence_check allowed only monthly, quarterly, semiannual and annual. bills_schedule
 --    now lists the cadences.

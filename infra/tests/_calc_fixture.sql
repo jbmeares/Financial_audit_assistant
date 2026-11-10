@@ -32,7 +32,8 @@ insert into ref.bills (bill_key, name, amount, amount_kind, due_day, account_key
   ('rent', 'Rent', 600.00, 'fixed', 31, 'chk', false, 'monthly', null, '2026-01-01'),
   ('insurance', 'Insurance', 300.00, 'fixed', 12, 'chk', false, 'quarterly', '2026-01-12', '2026-01-01');
 
-insert into ref.bill_aliases (bill_key, alias, valid_from) values ('phone', 'acme mobile', '2026-01-01');
+insert into ref.bill_aliases (bill_key, alias, valid_from) values
+  ('phone', 'acme mobile', '2026-01-01'), ('power', 'city power', '2026-01-01');
 
 insert into ref.income_sources (income_key, person, name, amount, cadence, anchor_pay_date, deposit_account_key, valid_from)
 values ('pay', 'james', 'Paycheck', 1000.00, 'biweekly', '2026-01-30', 'chk', '2026-01-01');
@@ -49,7 +50,18 @@ insert into raw.era_transactions (era_transaction_id, era_account_id, payload, c
   ('tx-rejected', 'era-chk', '{}', 'h', -40.00, '2026-02-03', false, 'SOMEONE'),
   ('tx-old', 'era-chk', '{}', 'h', -40.00, '2025-12-01', false, 'ACME MOBILE 999'),
   ('tx-pay', 'era-chk', '{}', 'h', 1000.00, '2026-01-30', false, 'PAYROLL'),
-  ('tx-phone-jan', 'era-chk', '{}', 'h', -40.00, '2026-01-05', false, 'ACME MOBILE 123');
+  ('tx-phone-jan', 'era-chk', '{}', 'h', -40.00, '2026-01-05', false, 'ACME MOBILE 123'),
+  -- Not bill payments, though each would otherwise score: a fee, an interest charge and a
+  -- transfer to the household's own savings.
+  ('tx-fee', 'era-chk', '{"description": "Late Fee"}', 'h', -40.00, '2026-02-06', false, 'ACME MOBILE'),
+  ('tx-interest', 'era-chk', '{"description": "Interest Charge"}', 'h', -15.99, '2026-02-07', false, 'BANK'),
+  ('tx-transfer', 'era-chk', '{"description": "Online Transfer to Savings 0001", "transferLink": {"counterpartAccountGroupKey": "era-sav"}}', 'h', -60.00, '2026-02-07', false, 'BANK'),
+  -- Close to a bill's amount with no name: not enough.
+  ('tx-near', 'era-chk', '{}', 'h', -95.00, '2026-02-08', false, 'HARDWARE STORE'),
+  -- Names the phone bill but is the streaming amount: never proposed for the streams.
+  ('tx-named-other', 'era-chk', '{}', 'h', -15.99, '2026-02-08', false, 'ACME MOBILE ACCESSORIES'),
+  -- The phone bill paid before February's window opened (Jan 25), with January already paid.
+  ('tx-early', 'era-chk', '{}', 'h', -40.00, '2026-01-20', false, 'ACME MOBILE 123');
 
 -- January's phone bill was confirmed. A wrong pairing was rejected earlier.
 insert into ledger.payments (bill_key, due_month, amount, paid_on, era_transaction_id, entered_by)

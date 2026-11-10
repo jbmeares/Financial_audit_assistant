@@ -1,6 +1,6 @@
 # How the numbers are made
 
-The `calc` tables are rebuilt by SQL, never edited and never worked out in prose (constitution rule 2). This file says what each step does and which defaults it uses. The SQL is in `infra/migrations/2026110917*` and `infra/migrations/2026111016*`. Defaults marked *(proposed default)* come from the build spec and are safe to tune, because the matcher only ever proposes.
+The `calc` tables are rebuilt by SQL, never edited and never worked out in prose (constitution rule 2). This file says what each step does and which defaults it uses. The SQL is in `infra/migrations/2026110917*`, with later changes in the migrations after them. Defaults marked *(proposed default)* come from the build spec and are safe to tune, because the matcher only ever proposes.
 
 "Today" is the date in New York.
 
@@ -41,15 +41,21 @@ The matcher looks at money-out transactions from the last 45 days that aren't pa
 | 30 | It came from the bill's account |
 | 40 | The amount is within tolerance: the bill's own, else $0.01 for fixed and 15% for variable |
 | 20 | It falls in the cycle's window: 7 days before to 7 days after the due month; for week-based and per-paycheck bills, the cycle's share of the days around its due date (weekly: 3 days either side; biweekly and per paycheck: 6 before to 7 after; every 6 weeks: 20 before to 21 after) |
-| 10 | The merchant contains an alias, or Era tagged it `bill:<key or name>` |
+| 10 | The merchant or Era's description contains an alias, or Era tagged it `bill:<key or name>` |
 
-- **Which cycle.** The nearest unpaid one, preferring one whose window holds the date. For week-based and per-paycheck bills, a cycle that already has a proposal waiting is picked last. Each proposal records the due date it would pay.
+- **Never a bill payment.** A transfer to another of the household's checking or savings accounts, a fee (the word "fee" in the description) and an interest charge are skipped. A card payment is a transfer to a card, so it is still matched.
+- **What can be proposed.** All three must hold:
+  - It falls inside the window of an unpaid cycle. For month-based bills it must also be nearer that cycle's due date than the bill's previous one: a payment closer to the previous due date paid that one, so it is left alone even when the previous month isn't tracked. Week-based and per-paycheck windows don't overlap, so they need no such check.
+  - It names the bill (alias or tag), or it is the exact amount from the bill's own account. Near the amount with no name is not enough.
+  - If it names any bill, only the bills it names are considered. A Netflix charge is never proposed for another bill at the same price.
+- **Which cycle.** The nearest due date among the cycles that qualify. For week-based and per-paycheck bills, a cycle that already has a proposal waiting is picked last. Each proposal records the due date it would pay.
 - **What gets proposed.** The best bill is proposed if it scores 70 or more. If two bills tie at the top, both are proposed as `ambiguous` (rule 5).
 - **What never happens.**
   - A transaction with a proposal still waiting gets no new one.
-  - A pairing that already exists, including a rejected one, is never proposed again.
+  - A pairing a person rejected is never proposed again.
   - Nothing is confirmed automatically.
 - **After a "no".** Once a proposal is rejected, the next-best bill can be proposed the following night.
+- **Withdrawn proposals.** A proposal set to `rejected` with no person in `decided_by` was withdrawn by a build, not refused by a person. The matcher may propose that pairing again under the current rules. The proposals from the first real run were withdrawn this way on 2026-11-10, because the old rules made them.
 
 ## Cash projection (`calc.cash_projection`, `calc.account_balances`)
 
