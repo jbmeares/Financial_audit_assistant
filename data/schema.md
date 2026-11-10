@@ -14,6 +14,7 @@ Each layer reads only from the layers above it, so a bad night of Era data can b
 | `knowledge` | Proposed matches, open questions, life events | The matcher proposes, actions decide |
 | `calc` | Bill cycles, cash projection, debts, the briefing | SQL functions (Block E). Never edited |
 | `actions` | The named write functions. No tables | Migrations only |
+| `mcp` | `run_query`, which the MCP's `query` tool uses. No tables | Migrations only |
 
 ## raw
 
@@ -61,6 +62,8 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 - **`open_questions`**: a question for a person, or `new_context` parked from claude.ai to be filed in the repo later (rule 22).
 - **`life_events`**: date, title, amount and the path of its story file in `life/`.
 - **`action_calls`**: every named action and what it returned. It makes a repeated call harmless.
+- **`tool_calls`**: every finance MCP tool call: the tool, the person, ok or error, and how long it took (F5).
+- **`era_rule_previews`**: each `create_era_rule` preview: the exact rule, its summary, and whether it was sent, created or failed, with Era's answer. A preview expires after 30 minutes and can be sent once.
 
 ## calc
 
@@ -88,6 +91,8 @@ The MCP's action tools call these and nothing else. Each one needs a person (`ja
 | `update_bill` | Changes a bill by closing the old row and adding a new one. Also creates a new bill, or ends one |
 | `void_entry` | Voids a payment, balance statement or adjustment with a reason. Voiding a confirmed match also rejects that pairing |
 | `log_question`, `answer_question` | Parks a question or new context, and answers it |
+| `stage_era_rule`, `claim_era_rule`, `finish_era_rule` | The two steps of `create_era_rule`: store the previewed rule, claim it once for sending, record Era's answer |
+| `log_tool_call` | Writes `knowledge.tool_calls` |
 
 Changes to debts, income and key expiry dates are made in Claude Code for v1.
 
@@ -100,7 +105,7 @@ Changes to debts, income and key expiry dates are made in Claude Code for v1.
 | `assistant_act` | Run the named actions, nothing else | The MCP's action tools |
 | owner | Everything | Migrations, in Claude Code with James present |
 
-Row security is on for every table. The public API roles get nothing. The three roles have no login yet; Blocks D and F give them one, with passwords kept as Supabase secrets.
+Row security is on for every table. The public API roles get nothing. The three roles have no login. The finance MCP reaches them with `SET LOCAL ROLE` inside each tool's transaction (reads also run read-only). The MCP's `query` tool runs its SQL inside `mcp.run_query`, owned by `assistant_read`, where switching role is refused. Details: `infra/functions/finance-mcp/README.md`.
 
 ## Tests
 

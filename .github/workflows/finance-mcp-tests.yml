@@ -1,0 +1,42 @@
+name: finance-mcp-tests
+
+on:
+  pull_request:
+    paths:
+      - "infra/functions/finance-mcp/**"
+      - "infra/migrations/**"
+      - ".github/workflows/finance-mcp-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/functions/finance-mcp/**"
+      - "infra/migrations/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: supabase_admin
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U supabase_admin"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check the server
+        run: deno check infra/functions/finance-mcp/index.ts
+      - name: Run the tool tests against a fresh database (GitHub and Era are faked)
+        env:
+          ADMIN_URL: postgresql://supabase_admin@localhost:5432/postgres
+        run: infra/functions/finance-mcp/test

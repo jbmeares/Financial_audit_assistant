@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Runs the finance-mcp tests against a throwaway local database built from the migrations.
+# Needs Deno and a local Postgres you can reach as a superuser through $ADMIN_URL
+# (the same setup as infra/tests/run --fresh-local, which this calls first).
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+: "${ADMIN_URL:?set ADMIN_URL to a superuser connection on a local Postgres}"
+
+# Build a fresh finance_test database (and run the SQL tests, which roll back).
+"$here/../../tests/run" --fresh-local > /dev/null
+
+export SUPABASE_DB_URL="$(python3 - "$ADMIN_URL" <<'PY'
+import sys, urllib.parse as u
+p = u.urlparse(sys.argv[1])
+netloc = 'postgres@' + (p.hostname or '') + (f':{p.port}' if p.port else '')
+print(u.urlunparse(p._replace(netloc=netloc, path='/finance_test')))
+PY
+)"
+cd "$here"
+deno test --allow-env --allow-net --allow-read tools.test.ts

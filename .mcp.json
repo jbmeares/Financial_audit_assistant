@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "household-finance": {
+      "type": "http",
+      "url": "https://lbhrkwjffgbfvmpyjuai.supabase.co/functions/v1/finance-mcp"
+    }
+  }
+}

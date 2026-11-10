@@ -1,7 +1,5 @@
-// finance-mcp, F0 spike: one tool behind Supabase Auth's OAuth 2.1 server.
-//
-// What it proves: claude.ai and Claude Code can discover the sign-in, send James through
-// the consent page, and call a tool with the token Supabase issues. It reads no finance data.
+// finance-mcp: the household finance tools (build spec Block F), behind Supabase Auth's
+// OAuth 2.1 server. The tools are in tools.ts, database access in db.ts.
 //
 // Deployed with verify_jwt = false on purpose. The platform check would answer a missing
 // token with a bare 401, but an MCP client needs a 401 that carries a WWW-Authenticate
@@ -10,6 +8,8 @@
 // that it was issued to an OAuth client, and that the user is on the allow list.
 
 import { createRemoteJWKSet, errors as joseErrors, jwtVerify } from "npm:jose@6.2.16";
+import { liveDb, plain, ToolError } from "./db.ts";
+import { TOOLS } from "./tools.ts";
 
 const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/$/, "");
 const FUNCTION_NAME = "finance-mcp";
@@ -25,7 +25,7 @@ const ALLOWED_EMAILS = (Deno.env.get("FINANCE_ALLOWED_EMAILS") ?? "")
   .filter(Boolean);
 
 const SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
-const SERVER_INFO = { name: "finance-mcp", version: "0.0.1-spike" };
+const SERVER_INFO = { name: "finance-mcp", title: "Household finance", version: "1.0.0" };
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -86,35 +86,46 @@ async function authenticate(req: Request): Promise<Caller | Response> {
   };
 }
 
-const TOOLS = [
-  {
-    name: "whoami",
-    title: "Who am I signed in as",
-    description:
-      "Test tool for the sign-in spike. Says which account and which app this connection is signed in as, and when the sign-in expires. Reads no finance data.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-];
-
-function callTool(name: string, caller: Caller) {
-  if (name !== "whoami") {
-    return { content: [{ type: "text", text: `There's no tool called ${name}.` }], isError: true };
+// Logs a call (F5). Best effort: a failed log never fails the tool.
+async function logCall(tool: string, person: unknown, ok: boolean, error: string | null, ms: number) {
+  try {
+    await liveDb.act(async (tx) => {
+      await tx`select actions.log_tool_call(${tool}, ${typeof person === "string" ? person : null}, ${ok}, ${error}, ${ms})`;
+    });
+  } catch (e) {
+    console.error("tool call log failed", e);
   }
-  const result = {
-    signed_in_as: caller.email,
-    user_id: caller.userId,
-    oauth_client_id: caller.clientId,
-    token_expires_at: caller.expiresAt,
-    server_time: new Date().toISOString(),
-  };
-  return {
-    content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-    structuredContent: result,
-  };
 }
 
-function handleRpc(msg: JsonRpc, caller: Caller): object | null {
+async function callTool(name: string, args: unknown, caller: Caller) {
+  const tool = TOOLS.find((t) => t.name === name);
+  if (!tool) {
+    return { content: [{ type: "text", text: `There's no tool called ${name}.` }], isError: true };
+  }
+  const a = (args && typeof args === "object" && !Array.isArray(args) ? args : {}) as Record<string, unknown>;
+  const started = Date.now();
+  try {
+    const { result, lead } = await tool.handler(a, { db: liveDb, env: (k) => Deno.env.get(k), caller });
+    await logCall(name, a.person, true, null, Date.now() - started);
+    const text = (lead ? lead + "\n\n" : "") + JSON.stringify(result, null, 2);
+    const structured = result && typeof result === "object" && !Array.isArray(result) ? result : { result };
+    return { content: [{ type: "text", text }], structuredContent: structured };
+  } catch (e) {
+    const message = e instanceof ToolError ? e.message : plain(e).message;
+    if (!(e instanceof ToolError)) console.error(`tool ${name} failed`, e);
+    await logCall(name, a.person, false, message, Date.now() - started);
+    return { content: [{ type: "text", text: message }], isError: true };
+  }
+}
+
+const INSTRUCTIONS = [
+  "Household finance for James and Katelyn. The numbers come only from these tools; the words come from the repo through read_context.",
+  "Start of every conversation: ask who you're talking to unless it's clear, then read_context(\"CLAUDE.md\"), read_context(\"constitution.md\") and read_context(\"people/<name>.md\"), then call get_briefing. Open with anything RED, then one line on what's due before the next income.",
+  "Every number you say comes from a tool result in this conversation or from what a person said (rule 1). Do sums, date math and what-ifs with query or what_if, never in prose (rule 2).",
+  "Action tools need person (james or katelyn). Never guess on a write: ask one short question if it's ambiguous (rule 5).",
+].join(" ");
+
+async function handleRpc(msg: JsonRpc, caller: Caller): Promise<object | null> {
   const isNotification = msg.id === undefined || msg.id === null;
   const reply = (result: unknown) => ({ jsonrpc: "2.0", id: msg.id, result });
   const fail = (code: number, message: string) => ({ jsonrpc: "2.0", id: msg.id ?? null, error: { code, message } });
@@ -130,15 +141,17 @@ function handleRpc(msg: JsonRpc, caller: Caller): object | null {
         protocolVersion,
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
-        instructions: "Household finance server. Spike build: only whoami exists so far.",
+        instructions: INSTRUCTIONS,
       });
     }
     case "ping":
       return reply({});
     case "tools/list":
-      return reply({ tools: TOOLS });
+      return reply({
+        tools: TOOLS.map(({ name, title, description, inputSchema, annotations }) => ({ name, title, description, inputSchema, annotations })),
+      });
     case "tools/call":
-      return reply(callTool(String(msg.params?.name ?? ""), caller));
+      return reply(await callTool(String(msg.params?.name ?? ""), msg.params?.arguments, caller));
     default:
       return fail(-32601, `Method not found: ${msg.method}`);
   }
@@ -177,7 +190,8 @@ Deno.serve(async (req) => {
     return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, 400);
   }
 
-  const replies = (Array.isArray(body) ? body : [body]).map((m) => handleRpc(m, caller)).filter((r) => r !== null);
+  const replies = (await Promise.all((Array.isArray(body) ? body : [body]).map((m) => handleRpc(m, caller))))
+    .filter((r) => r !== null);
   if (replies.length === 0) return new Response(null, { status: 202, headers: CORS });
   return json(Array.isArray(body) ? replies : replies[0]);
 });
