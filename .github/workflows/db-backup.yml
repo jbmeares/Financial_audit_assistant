@@ -42,7 +42,8 @@ jobs:
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          docker run --rm --network host -v "$PWD:/out" postgres:17 \
+          # Run as the runner's user, so the dump file is ours and the Encrypt step can shred it.
+          docker run --rm --network host --user "$(id -u):$(id -g)" -v "$PWD:/out" postgres:17 \
             pg_dump "$DB" -Fc -f /out/finance.dump \
               -n raw -n ref -n ledger -n knowledge -n calc -n actions
           ls -l finance.dump
