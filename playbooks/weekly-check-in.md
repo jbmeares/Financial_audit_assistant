@@ -16,6 +16,8 @@ A routine look at the week ahead. Keep it short: one call a week is realistic ([
 
 ## Then
 
+- The budget item: say what's left in the lines that matter this week. If a line ran over, say it by category, never by person ([rule 19](../constitution.md)).
+
 - Open questions in the briefing: ask at most one ([rule 14](../constitution.md)).
 - YELLOW items: mention calmly. GREEN: only if asked.
 

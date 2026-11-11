@@ -10,6 +10,8 @@ Income just landed, or is about to. The question is usually "what does this payc
 
 ## Say first
 
+- On a Lincoln payday: Food, Fuel and fun money start fresh. Say what each has for the next two weeks (budget item).
+
 - What this income has to cover before the next one, as one plain line with its as-of date ([rule 8](../constitution.md)).
 - If the projection still goes below $0 before the next income, that's RED ([rule 11](../constitution.md)).
 
