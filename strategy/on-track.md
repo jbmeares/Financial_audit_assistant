@@ -4,8 +4,8 @@ From James's interview on 2026-11-11. On track is a ladder: meet one level, then
 
 ## The levels
 
-1. **Stable.** No bill is a month behind, and no bank account goes negative. Goal: 3 months in a row *(suggested, James to confirm)*.
-2. **Growing.** Bill Pay and the Emergency Fund both end the month higher than they started, instead of shrinking or going negative. Goal: 3 months in a row *(suggested, James to confirm)*.
+1. **Stable.** No bill is a month behind, and no bank account goes negative. Goal: 3 months in a row.
+2. **Growing.** Bill Pay and the Emergency Fund both end the month higher than they started, instead of shrinking or going negative. Goal: 3 months in a row.
 3. **Cushion.** The Emergency Fund holds a set amount, and Bill Pay never dips below a set amount. Amounts not chosen yet. Ask James when Level 2 is close.
 
 ## A missed month (any level)
