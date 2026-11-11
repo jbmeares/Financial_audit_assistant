@@ -8,6 +8,7 @@ Code, kept apart from the words. Change it only in Claude Code, with James prese
 - `functions/`: Supabase Edge Functions (`era-pull`, `finance-mcp`).
 - `consent/`: the sign-in and consent page for the finance MCP, a static page hosted on Vercel (see `functions/finance-mcp/README.md`).
 - `scripts/`: repo tooling, such as `check-map`.
+- `runbooks/`: step-by-step pages for swapping keys and restoring the weekly backup ([runbooks/README.md](runbooks/README.md)).
 
 **Doesn't go here**
 - Keys, tokens or passwords. Those live in Supabase secrets or GitHub secrets, never in the repo.

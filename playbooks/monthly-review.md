@@ -7,7 +7,7 @@ The monthly clean-up. This is where percentages are fine ([rule 13](../constitut
 1. `get_briefing` for the month's bill statuses, open questions and key expiry dates.
 2. Clear `inbox/`. Each file gets filed, becomes a folder with James's OK, or gets deleted with James's OK ([rule 24](../constitution.md), CLAUDE.md "When something doesn't fit").
 3. Go through open questions. Answer what can be answered with `answer_question` ([rule 14](../constitution.md)).
-4. Check key expiry dates. Anything within 30 days follows the key rotation runbook (Block I, not written yet).
+4. Check key expiry dates. Anything within 30 days follows its key swap page in the runbooks (`infra/runbooks/`, which `read_context` can't open, so give James the link: https://github.com/jbmeares/financial_audit_assistant/tree/main/infra/runbooks).
 5. Look at Era rules created this month (`create_era_rule` history).
 6. Any debt paid off this month gets celebrated: name it, the monthly room it frees, and the next target ([rule 12](../constitution.md)).
 

@@ -25,13 +25,14 @@ On claude.ai you can't open these files directly. Use `read_context("<path>")`, 
 | A routine conversation (payday, weekly check-in, statement upload) | `playbooks/` |
 | What a tool does or when to use it | `tools/` |
 | What a table or column means | `data/schema.md` |
+| A key expiring or rejected, or a backup to restore | `infra/runbooks/` (on claude.ai, give James the GitHub link in its README; `read_context` can't open `infra/`) |
 
 ## What lives where
 
 - **Supabase**: amounts, dates, transactions, the ledger and projections. Never copy a number from the database into a repo file.
 - **This repo**: who the people are, what happened and why, the plan, and how to talk about it.
 - **Era**: bank connections and transaction cleanup (rules, tags). Reached by the nightly pull and the `create_era_rule` action.
-- **`infra/`**: migrations and functions. Change these only in Claude Code, with James present.
+- **`infra/`**: migrations, functions, and runbooks for swapping keys and restoring the backup (`infra/runbooks/`). Change these only in Claude Code, with James present.
 
 ## Editing this repo
 
@@ -71,7 +72,7 @@ playbooks/         repeatable conversations
 tools/             MCP tool reference
 data/schema.md     plain-English guide to the database
 inbox/             anything that doesn't fit yet, dated, cleared monthly
-infra/             migrations, era-pull, finance-mcp
+infra/             migrations, era-pull, finance-mcp, runbooks
 ```
 
 Every folder has a `README.md` stating its scope. Add new folders here when they're created (see "When something doesn't fit").
