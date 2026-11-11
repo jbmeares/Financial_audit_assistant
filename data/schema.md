@@ -32,7 +32,7 @@ Claude's read role can read `raw` (to look up transactions and balances) but nev
 Every row has `valid_from` and `valid_to`. A change closes the old row and adds a new one, so nothing is overwritten. Each thing has a short stable key (for example `phone`) shared by all its versions. The `current_*` views show the rows in effect today.
 
 - **`people`**: `james`, `katelyn`.
-- **`accounts`**: an Era account mapped to a name, an owner (a person or `joint`), a kind (checking, savings, card, loan) and a role in words.
+- **`accounts`**: an Era account mapped to a name, an owner (a person or `joint`), a kind (checking, savings, card, loan) and a role in words. `connection` says how it reaches us: `era` (it should come through Era; with no Era account yet, it's still to connect) or `manual` (tracked by hand: people tell us the balance). This is the running list of accounts that should be connected.
 - **`bills`**: name, amount, fixed or variable, tolerance, the account it's paid from, autopay, and a schedule. The schedule is a cadence plus what that cadence needs:
     - `monthly`: a due day.
     - `every_other_month`, `quarterly`, `semiannual`, `annual`: a due day and one known due date.
@@ -74,6 +74,7 @@ Rebuilt by `refresh_all()` after every pull and every named action. Never edited
 - **`cash_projection`**: each checking and savings account for 60 days: opening, money in, money out, closing, below zero, and what moved that day.
 - **`debt_snapshot`**: each debt's balance, APR, minimum, estimated monthly interest, promo end and payoff priority.
 - **`briefing`**: one row: today's date, how old the numbers are, the next income, a level and a list of RED, YELLOW and GREEN items.
+- **`connection_status`**: the connection list checked against what Era last sent. One row per current account, with a status: `ok` (data in the last 3 days), `stale` (Era lists it, but its data is older), `gone_from_era` (Era stopped listing it, or shows it disconnected or hidden), `to_connect`, `manual`, or `not_tracked` (Era has it, but `ref.accounts` doesn't). `era_archived` is Era's own flag: Era archives a connection after about 30 days with no new data, which takes it out of the main view in Era.
 - **`refresh_runs`**: every refresh, and whether it worked. A failed one keeps the previous numbers.
 
 `what_if(changes)` is a read-only function on top of these.
