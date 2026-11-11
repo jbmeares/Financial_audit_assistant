@@ -1,0 +1,141 @@
+name: db-restore
+
+# I3. Puts one weekly backup (db-backup.yml) back into the live database. Run it by hand only,
+# by following infra/runbooks/restore-backup.md.
+#
+# What it does, in order. Any failure stops it before the live database is touched, and the
+# restore itself runs in one transaction, so a failure there changes nothing either.
+#   1. Checks the confirm box: RESTORE for real, TEST for a rehearsal that stops after step 3.
+#   2. Downloads the backup from the run you named and decrypts it with BACKUP_PASSPHRASE (or
+#      BACKUP_PASSPHRASE_OLD, for backups made before a passphrase change). The run can be a
+#      db-backup run, or an earlier db-restore run, whose before-restore copy undoes it.
+#   3. Proves the file restores into a scratch Postgres.
+#   4. Saves the live database as it is now, encrypted, as this run's "before-restore" artifact.
+#   5. Replaces the six finance schemas in the live database with the backup.
+#
+# The mcp schema (the query tool's mcp.run_query), the roles, pg_cron, pg_net, Auth users, Edge
+# Functions and secrets aren't in the backup, and this doesn't touch them.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_run_id:
+        description: "Run ID of the db-backup run to restore (the number at the end of that run's web address), or of a db-restore run to undo it"
+        required: true
+      confirm:
+        description: "Type RESTORE to replace the live finance data, or TEST to only check the backup opens and restores"
+        required: true
+
+permissions:
+  contents: read
+  actions: read # to download an artifact from another run
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    services:
+      scratch:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - name: Check the inputs and secrets
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          RUN_ID: ${{ inputs.backup_run_id }}
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ "$CONFIRM" = "RESTORE" ] || [ "$CONFIRM" = "TEST" ] || { echo "::error::Type RESTORE or TEST (capitals) in the confirm box"; exit 1; }
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::The run ID is the number only, like 19312345678"; exit 1; }
+          [ -n "$DB" ] || { echo "::error::Add the SUPABASE_DB_URL repository secret"; exit 1; }
+          [ -n "$PASS" ] || { echo "::error::Add the BACKUP_PASSPHRASE repository secret"; exit 1; }
+
+      - name: Download the backup
+        uses: actions/download-artifact@v4
+        with:
+          # finance-backup-<id> from db-backup, or finance-before-restore-<id> from db-restore.
+          pattern: finance-*
+          merge-multiple: true
+          path: artifact
+          run-id: ${{ inputs.backup_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Decrypt it
+        env:
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+          OLD: ${{ secrets.BACKUP_PASSPHRASE_OLD }}
+          RUN_ID: ${{ inputs.backup_run_id }}
+        run: |
+          src=$(ls artifact/*.dump.gpg 2>/dev/null | head -n1)
+          [ -n "$src" ] || { echo "::error::Run $RUN_ID has no finance backup artifact (they last 90 days)"; exit 1; }
+          echo "Using $src"
+          dec() { gpg --batch --yes --pinentry-mode loopback --passphrase "$1" -o finance.dump --decrypt "$src" 2>/dev/null; }
+          if dec "$PASS"; then echo "Decrypted with BACKUP_PASSPHRASE."
+          elif [ -n "$OLD" ] && dec "$OLD"; then echo "Decrypted with BACKUP_PASSPHRASE_OLD."
+          else echo "::error::Neither BACKUP_PASSPHRASE nor BACKUP_PASSPHRASE_OLD opens this backup"; exit 1; fi
+          ls -l finance.dump
+
+      - name: Prove it restores into a scratch database
+        run: |
+          docker run --rm --network host -v "$PWD:/out" -e PGPASSWORD=ci-only postgres:17 sh -c '
+            for r in ingest assistant_read assistant_act anon authenticated service_role; do
+              psql -h localhost -U postgres -qc "create role $r nologin" ; done
+            pg_restore -h localhost -U postgres -d postgres --no-owner --exit-on-error /out/finance.dump
+            psql -h localhost -U postgres -Atc "select count(*) from raw.pull_runs"'
+
+      - name: Save the live database as it is now
+        if: inputs.confirm == 'RESTORE'
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          # A damaged live database may not dump. Then there is nothing worth keeping, so go on.
+          if docker run --rm --network host --user "$(id -u):$(id -g)" -v "$PWD:/out" postgres:17 \
+               pg_dump "$DB" -Fc -f /out/before-restore.dump \
+                 -n raw -n ref -n ledger -n knowledge -n calc -n actions; then
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$PASS" \
+              --symmetric --cipher-algo AES256 -o before-restore.dump.gpg before-restore.dump
+            shred -u before-restore.dump
+          else
+            echo "::warning::The live database couldn't be dumped, so there is no before-restore copy."
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.confirm == 'RESTORE'
+        with:
+          name: finance-before-restore-${{ github.run_id }}
+          path: before-restore.dump.gpg
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Restore into the live database
+        if: inputs.confirm == 'RESTORE'
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # --clean --if-exists drops each object in the backup before re-creating it.
+          # --single-transaction makes it all or nothing.
+          docker run --rm --network host -v "$PWD:/out" postgres:17 \
+            pg_restore -d "$DB" --clean --if-exists --no-owner --single-transaction --exit-on-error \
+              /out/finance.dump
+
+      - name: Show what the live database holds now
+        if: inputs.confirm == 'RESTORE'
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          docker run --rm --network host postgres:17 psql "$DB" -c "
+            select 'last pull run' as what, max(started_at)::text as value from raw.pull_runs
+            union all select 'transactions', count(*)::text from raw.era_transactions
+            union all select 'ledger payments', count(*)::text from ledger.payments
+            union all select 'life events', count(*)::text from knowledge.life_events"
+
+      - name: Remove the decrypted file
+        if: always()
+        run: |
+          [ ! -f finance.dump ] || shred -u finance.dump
+          [ ! -f before-restore.dump ] || shred -u before-restore.dump

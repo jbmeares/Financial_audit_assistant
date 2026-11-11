@@ -7,8 +7,8 @@ name: db-backup
 # Needs two repository secrets (Settings > Secrets and variables > Actions):
 #   SUPABASE_DB_URL     the session pooler connection string (Supabase > Connect), with password
 #   BACKUP_PASSPHRASE   a long random passphrase; keep a copy in your password manager
-# To restore: download the artifact, then
-#   gpg --decrypt finance.dump.gpg > finance.dump && pg_restore -d "$TARGET_URL" finance.dump
+# To restore: follow infra/runbooks/restore-backup.md (the db-restore workflow).
+# To change either secret: infra/runbooks/backup-secrets.md.
 
 on:
   schedule:
