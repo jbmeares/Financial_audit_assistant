@@ -1,6 +1,6 @@
 # get_briefing
 
-*Reads.* Today's picture, in one row: a RED, YELLOW or GREEN level, the next income date, and a list of items, RED first. The items cover overdraft risk before the next income, bills due before then, pending matches, stale accounts, keys expiring within 30 days, failed pulls and open questions.
+*Reads.* Today's picture, in one row: a RED, YELLOW or GREEN level, the next income date, and a list of items, RED first. The items cover overdraft risk before the next income, bills due before then, pending matches, stale accounts, accounts still to connect or dropped by Era (from `calc.connection_status`), keys expiring within 30 days, failed pulls and open questions.
 
 **Takes** nothing.
 
