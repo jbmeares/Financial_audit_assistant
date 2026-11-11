@@ -72,6 +72,20 @@ export interface EraCallResult {
   body: unknown;
 }
 
+/**
+ * Era's API reads filters and actions as polymorphic JSON, which needs the "type" field to be the
+ * first property of each object. Neither the client nor jsonb keeps key order, so put it first here.
+ */
+export function typeFirst(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(typeFirst);
+  if (v === null || typeof v !== "object") return v;
+  const o = v as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  if ("type" in o) out.type = o.type;
+  for (const [k, x] of Object.entries(o)) if (k !== "type") out[k] = typeFirst(x);
+  return out;
+}
+
 export async function eraPost(path: string, key: string | undefined, keyName: string, body: unknown, f: Fetch = fetch, timeoutMs = 25000): Promise<EraCallResult> {
   if (!key) throw new ToolError(`The ${keyName} secret is missing, so Era can't be reached for this.`);
   let res: Response;
@@ -79,7 +93,7 @@ export async function eraPost(path: string, key: string | undefined, keyName: st
     res = await f(`${ERA_BASE}${path}`, {
       method: "POST",
       headers: { "X-API-Key": key, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(typeFirst(body)),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (e) {

@@ -185,13 +185,20 @@ Deno.test("create_era_rule previews with the read key, then creates once with th
     filters: [{ type: "merchant_match", pattern: "TEST", mode: "contains" }],
     actions: [{ type: "hide_transaction" }],
   };
+  // Sent with "type" last, as a client may: Era needs it first.
+  const shuffled = {
+    ruleName: "Test rule",
+    filters: [{ pattern: "TEST", mode: "contains", type: "merchant_match" }],
+    actions: [{ type: "hide_transaction" }],
+  };
   fakeResponses = [() => Response.json({ matchCount: 2, totalEvaluated: 50, sampleMatches: [{ groupKey: "utgr_1" }] })];
-  const p = await call("create_era_rule", { person: "james", rule, summary: "Hide test" });
+  const p = await call("create_era_rule", { person: "james", rule: shuffled, summary: "Hide test" });
   const preview = p.result as { preview_id: string; match_count: number };
   assertEquals(preview.match_count, 2);
   const previewCall = calls.at(-1)!;
   assertMatch(previewCall.url, /\/banking\/rules\/preview$/);
   assertEquals((previewCall.init?.headers as Record<string, string>)["X-API-Key"], "test-read-key");
+  assertMatch(String(previewCall.init?.body), /"filters":\[\{"type":"merchant_match"/);
 
   fakeResponses = [() => Response.json({ rule: { id: "rule_test1" }, retroactiveStatus: null, affectedTransactionCount: 0 })];
   const c = await call("create_era_rule", { person: "james", preview_id: preview.preview_id });
@@ -200,6 +207,7 @@ Deno.test("create_era_rule previews with the read key, then creates once with th
   assertMatch(createCall.url, /\/banking\/rules$/);
   assertEquals((createCall.init?.headers as Record<string, string>)["X-API-Key"], "test-write-key");
   assertEquals(JSON.parse(String(createCall.init?.body)), rule);
+  assertMatch(String(createCall.init?.body), /"filters":\[\{"type":"merchant_match"/);
 
   // A retried confirm sends nothing.
   await refuses("create_era_rule", { person: "james", preview_id: preview.preview_id }, /already created/);
