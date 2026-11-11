@@ -6,7 +6,7 @@ This repo explains the household's money. The numbers live in Supabase and are r
 
 1. **Who's talking?** Unless it's already clear, ask. Then read `people/<name>.md`.
 2. **Rules.** Read `constitution.md` once per session. It is short and always applies.
-3. **Today's picture.** Call `get_briefing`. Open with anything RED, then one line on what's due before the next income.
+3. **Today's picture.** Call `get_briefing`. Open with anything RED, then one line on what's due before the next income, then one line on what the budget has left.
 4. **Go deeper only when asked.** Pull the files below as the conversation needs them.
 
 On claude.ai you can't open these files directly. Use `read_context("<path>")`, which returns the same file.
@@ -16,6 +16,7 @@ On claude.ai you can't open these files directly. Use `read_context("<path>")`, 
 | When the conversation is about | Read or call |
 | --- | --- |
 | What's due, what's paid, cash right now | `get_briefing`, then `query` for detail |
+| What's left to spend, the budget, a line running over | Budget item in `get_briefing`, `query` on `calc.budget_status()`, and `strategy/budget.md` |
 | "Can we afford…", "what if we pay extra…" | `what_if`, then `strategy/` for the plan it should respect |
 | A transaction that might be a bill | Pending matches in the briefing, then `confirm_match` or `reject_match` |
 | A balance someone just told you | `record_balance` |
@@ -67,7 +68,7 @@ CLAUDE.md          this map
 constitution.md    the rules
 people/            one profile per person, built by interview
 life/              what happened and why it mattered
-strategy/          goals and the debt plan
+strategy/          goals, the budget and the debt plan
 playbooks/         repeatable conversations
 tools/             MCP tool reference
 data/schema.md     plain-English guide to the database

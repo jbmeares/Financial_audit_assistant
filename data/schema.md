@@ -45,6 +45,8 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
 - **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first).
 - **`income_sources`**: person, amount, cadence (monthly or biweekly), one known pay date to count from, and the deposit account. The known pay date is the scheduled one: a pay date on a weekend or bank holiday is paid the bank business day before.
 - **`transfers`**: planned moves between the household's own accounts, such as Joint to Bill Pay each payday. Each has a from-account, a to-account, an amount and a schedule, with the same cadences as bills. They move money in the projection but are never bills and never matched.
+- **`budget_lines`**: each spending line's name, amount, and period: `paycheck` (resets on each pay date of `income_key`) or `month` (resets on the 1st). `borrows_from` names the line it borrows from when it runs over (Shopping). `tracked` is false for an amount-only line, such as the extra debt payment. How the budget works: [strategy/budget.md](../strategy/budget.md).
+- **`budget_rules`**: which transactions count against which line, by Era category, merchant (part of the name) and/or account. Every condition given must match, and the lowest `priority` number wins. A rule with no line means "counts against nothing" (used for Bill Pay).
 - **`api_keys`**: each key's name, scope and expiry date. Never the key itself. `current_api_keys` adds `days_left`.
 
 ## ledger
@@ -75,6 +77,8 @@ Rebuilt by `refresh_all()` after every pull and every named action. Never edited
 - **`debt_snapshot`**: each debt's balance, APR, minimum, estimated monthly interest, promo end and payoff priority.
 - **`briefing`**: one row: today's date, how old the numbers are, the next income, a level and a list of RED, YELLOW and GREEN items.
 - **`connection_status`**: the connection list checked against what Era last sent. One row per current account, with a status: `ok` (data in the last 3 days), `stale` (Era lists it, but its data is older), `gone_from_era` (Era stopped listing it, or shows it disconnected or hidden), `to_connect`, `manual`, or `not_tracked` (Era has it, but `ref.accounts` doesn't). `era_archived` is Era's own flag: Era archives a connection after about 30 days with no new data, which takes it out of the main view in Era.
+- **`budget_status(today)`** (a function): each budget line in the period that contains today, with spent, left, what other lines borrowed from it, and what's left after that. Default today is Eastern.
+- **`budget_spending(from, to)`** (a function): each spending transaction between two dates and the budget line it counts against. Leaves out transfers, card and loan payments, money in, and anything that is or may be a bill payment.
 - **`refresh_runs`**: every refresh, and whether it worked. A failed one keeps the previous numbers.
 
 `what_if(changes)` is a read-only function on top of these.
