@@ -13,7 +13,7 @@ From James's interview on 2026-11-11.
     - A new family vehicle.
     - A tractor for the farm, for work that would cost a lot to pay someone else to do.
 
-   Neither is decided. **(inferred)** When one comes up, run `what_if` and show what it does to the debt-free date.
+   Neither is decided. When one comes up, run `what_if` and show what it does to the debt-free date.
 3. **Financial independence and generational wealth**, maybe with earlier retirement. He wants to start thinking in terms of assets and liabilities.
 
 ## Retirement

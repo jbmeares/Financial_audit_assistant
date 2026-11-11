@@ -6,7 +6,7 @@ From James's interview on 2026-11-11. On track is a ladder: meet one level, then
 
 1. **Stable.** No bill is a month behind, and no bank account goes negative. Goal: 3 months in a row.
 2. **Growing.** Bill Pay and the Emergency Fund both end the month higher than they started, instead of shrinking or going negative. Goal: 3 months in a row.
-3. **Cushion.** The Emergency Fund holds a set amount, and Bill Pay never dips below a set amount. Amounts not chosen yet. Ask James when Level 2 is close.
+3. **Cushion.** The Emergency Fund holds 1 month of basic necessity bills, then 3 months, then 6 months (James, 2026-11-11). A month of basic necessities means the mortgage, utilities, all debt minimums and payments, plus the food, animals and fuel budget lines. Subscriptions and flex spending don't count (James, 2026-11-11, same definition as the old v2 system). The dollar figure comes from the database, not this file. Bill Pay never dips below a set amount, not chosen yet; ask James when Level 2 is close.
 
 ## A missed month (any level)
 
