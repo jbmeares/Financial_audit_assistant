@@ -12,6 +12,8 @@ The 401k loan is not in this plan. It's deducted from pay automatically ([goals.
 
 **The loan from Katelyn's mom** sits outside the avalanche. It has no interest and no schedule, but James plans to pay it off with the tax refund or bonus in early 2027 (said 2026-11-11). "I hate owing people money."
 
+The plan as it stands, with a payoff month for each debt, is `query` on `calc.debt_payoff_plan()` ([how it's worked out](../data/calculations.md)).
+
 ## Windfalls
 
 Bonuses and tax refunds come around the start of each year. James puts them toward debt, or toward a large purchase they don't want to put on credit. Which one depends on the situation at the time, so ask him. Show both options with `what_if`.
