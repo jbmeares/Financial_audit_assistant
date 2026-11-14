@@ -10,7 +10,7 @@ The v2 envelopes were livable. "We have done it before." They failed because nob
 
 1. **Bill Pay covers the bills, automatically.** Fixed transfers from Joint to Bill Pay on each Lincoln payday and on VA day (`ref.current_transfers`). They're sized so Bill Pay covers every bill at its high month. Bills that swing (electric, water, internet, pest control, preschool) are planned at their 12-month high, so the low months leave a little extra in Bill Pay as its cushion. Three-paycheck months add to that cushion too.
 2. **Joint is spending money.** Each Lincoln check leaves enough in Joint for two weeks of groceries and gas. VA on the 1st funds the monthly lines and the extra debt payment.
-3. **Lines.** Food and Fuel reset each Lincoln payday. Fun money (one line each for James and Katelyn) resets each Lincoln payday too, and is spent from each person's Personal account. Shopping, Animals, Home and repairs, and Doctor and pharmacy reset on the 1st. The extra debt payment is what's left from VA after the other lines. It goes to the current target in [debt-plan.md](debt-plan.md).
+3. **Lines.** Food and Fuel reset each Lincoln payday. Fun money (one line each for James and Katelyn) resets each Lincoln payday too. It is what's in each person's Personal account (James, 2026-11-14). Shopping, Animals, Home and repairs, and Doctor and pharmacy reset on the 1st. The extra debt payment is what's left from VA after the other lines. It goes to the current target in [debt-plan.md](debt-plan.md).
 4. **Running over.** A line that runs over borrows from Shopping (James's call). Once Shopping is empty too, spending stops until the next check. Fun money never borrows: "not a penny over, but zero interrogation under it."
 5. **The daily check.** The briefing has a budget item every day, saying what each line has left. It turns YELLOW once Shopping is empty after covering the others. That item is the check nobody did before.
 
@@ -20,7 +20,7 @@ Food, Animals and Fuel keep those names, because the Level 3 Emergency Fund coun
 
 `ref.current_budget_rules` maps Era categories, merchants and accounts to lines. The most specific rule wins. Anything from Bill Pay counts against nothing. Sam's Club, Costco and Walmart count as Food. A catch-all sends other categories to Shopping, so nothing goes unseen.
 
-**Open:** Sam's Club also sells the household's gas, and the bank data can't tell gas from groceries there. Plan: put all Sam's gas on one card, then add a rule for that card at Sam's → Fuel. James is choosing the card (leaning toward his smaller Chase card, paid off monthly).
+**Open:** Sam's Club also sells the household's gas, and the bank data can't tell gas from groceries there. Plan: all Sam's gas goes on James's Chase Freedom (James, 2026-11-14), and a rule sends Sam's charges on that card to Fuel.
 
 ## When to revisit
 

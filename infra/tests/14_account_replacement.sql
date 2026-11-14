@@ -44,6 +44,9 @@ select pg_temp.check((select count(*) from raw.era_transactions where removed_at
 
 -- An account with no replacement behaves as before: a removed row comes back when seen again.
 update raw.era_transactions set removed_at = now() where era_transaction_id = 'o-1';
+-- Same role as the pulls above: the earlier ingests left their scratch table in this transaction,
+-- and only its owner (ingest) may drop it.
+set local role ingest;
 select raw.start_pull('manual', '2026-11-01', '2026-11-12') as run3 \gset
 select raw.ingest_transactions(:run3, '[{"id":"o-1","account_id":"old-chk","amount":-10,"occurred_on":"2026-11-08","pending":false,"merchant":"SHOP","payload":{}}]');
 select pg_temp.check((select removed_at is null from raw.era_transactions where era_transaction_id = 'o-1'),
