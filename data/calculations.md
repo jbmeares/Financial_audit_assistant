@@ -117,8 +117,36 @@ It returns the following for each account, before and after the changes:
 
 It also returns payoff dates for any debt an extra payment touches. An `income_change` doesn't stop a per-paycheck transfer, and the notes say so. Payoff dates assume the minimum payment stays the same and that payments start next month, so they are estimates. A change, field or key it doesn't recognize is refused by name.
 
+## Paycheck plan (`calc.paycheck_plan(today, days)`)
+
+A function, not a table, so it is always worked out fresh from `ref` and the last refresh's bill cycles. One row per pay date, from each income source's latest pay date on or before today (`is_current`) through today + `days` (default 45).
+
+- **What a paycheck funds** (`items`, in this order):
+  - per-paycheck transfers on that income source (`ref.transfers`);
+  - per-paycheck bills on that income source, with their status from `calc.bill_cycles`;
+  - budget lines that reset on that income source's pay dates.
+- **Left over.** The check, less transfers out of the deposit account, bills paid from the deposit account, and the paycheck budget lines. A bill paid from another account (Bill Pay) is listed with `counts: false` and isn't subtracted, because a transfer already funds that account.
+- **Which version.** Pay dates come from the current income source, as in `budget_status`. Transfers and budget lines use the version in effect on the pay date, or today's for a pay date already past, so the current paycheck shows today's plan.
+- **Left out.** Monthly budget lines (Shopping and the others), because nothing in the data ties them to one income source. [budget.md](../strategy/budget.md) says in words that VA funds them.
+
+## Debt payoff plan (`calc.debt_payoff_plan(today, extra)`)
+
+The debt plan as it stands ([debt-plan.md](../strategy/debt-plan.md)), worked out from `calc.debt_snapshot`. One row per current debt.
+
+- **Promos.** A promo is a part of a debt's balance with its own end date (`ref.debt_promos`). A card can have several. A debt with `promo_end_on` and no promo rows counts as all on promo. A promo counts only until its end date passes.
+- **Plan order.** Debts with an active promo first, soonest end first. Then the highest APR. Ties go to the smaller balance, then the key *(proposed default)*. If a debt's `payoff_priority` disagrees with this order, the row's notes say so, and the written plan wins.
+- **The monthly amount.** Every in-plan minimum plus the extra debt budget line (`extra-debt`), or `extra` when given. It never shrinks, so each paid-off minimum rolls into the next target.
+- **Each month, from next month on** (this month's payments count as already planned, as in `what_if`):
+  1. Interest is added on the part of the balance not on a running promo: that part × APR ÷ 12. A promo part runs interest-free through its end month *(assumption: deferred interest charged back at the end isn't modelled)*.
+  2. Every debt gets its minimum.
+  3. What's left goes to the first unpaid debt in plan order, then the next.
+  Each payment comes off the debt's soonest-ending promo part first *(assumption, so the plan clears each deadline in turn)*.
+- **Each row** gives the payoff month, months to payoff, and total interest until then. `is_target` marks the current target. `promo_end_on` is the next active promo's end. `promo_at_risk` means some promo part is still owed at the end of its month (or, for a promo ending this month, is owed now).
+- **Listed but given no money**, with a note: a debt marked outside the plan (`ref.debts.in_payoff_plan` false, such as the loan from Katelyn's mom), a debt with no balance on file (never guessed), and a debt with nothing owed. Other notes: a stale balance, a $0 minimum, and a payoff past 50 years (reported as no date).
+- **What it doesn't know.** It uses each debt's minimum from `ref.debts`, not a bill that pays more (for example a per-paycheck loan payment), and it doesn't check the cash floor. Payoff dates are estimates.
+
 ## Who can run what
 
 - `ingest` runs `refresh_all()`.
-- `assistant_read` runs `what_if()` and reads every `calc` table.
+- `assistant_read` runs `what_if()`, `budget_status()`, `paycheck_plan()` and `debt_payoff_plan()`, and reads every `calc` table.
 - The inner steps are open to no role.

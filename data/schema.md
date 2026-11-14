@@ -46,7 +46,8 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
     - `category`: housing, utilities, debt, insurance, kids, health, food, car, subscriptions or household (the list in use; a new one is a lowercase word or two).
     - `basic_necessity`: true when the bill counts toward a month of basic necessities for the Emergency Fund ladder ([strategy/on-track.md](../strategy/on-track.md)).
 - **`bill_aliases`**: names a bill shows up as in transactions.
-- **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first).
+- **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first). `in_payoff_plan` is false for a debt the written plan keeps outside the avalanche.
+- **`debt_promos`**: a promo balance on a debt: how much of the balance is on it and when it ends. A card can have several; the rest of its balance is at the APR.
 - **`income_sources`**: person, amount, cadence (monthly or biweekly), one known pay date to count from, and the deposit account. The known pay date is the scheduled one: a pay date on a weekend or bank holiday is paid the bank business day before.
 - **`transfers`**: planned moves between the household's own accounts, such as Joint to Bill Pay each payday. Each has a from-account, a to-account, an amount and a schedule, with the same cadences as bills. They move money in the projection but are never bills and never matched.
 - **`budget_lines`**: each spending line's name, amount, and period: `paycheck` (resets on each pay date of `income_key`) or `month` (resets on the 1st). `borrows_from` names the line it borrows from when it runs over (Shopping). `tracked` is false for an amount-only line, such as the extra debt payment. How the budget works: [strategy/budget.md](../strategy/budget.md).
@@ -85,6 +86,8 @@ Rebuilt by `refresh_all()` after every pull and every named action. Never edited
 - **`emergency_fund_status`** (a view): one row with the Emergency Fund balance against 1, 3 and 6 months of basic necessities: the bills tagged `basic_necessity` plus the Food, Animals and Fuel budget lines, as monthly figures. `untagged_bills` counts bills not tagged yet, which are left out, so the figure is complete only when it is 0. `rung_reached` is 0, 1, 3 or 6.
 - **`budget_status(today)`** (a function): each budget line in the period that contains today, with spent, left, what other lines borrowed from it, and what's left after that. Default today is Eastern.
 - **`budget_spending(from, to)`** (a function): each spending transaction between two dates and the budget line it counts against. Leaves out transfers, card and loan payments, money in, and anything that is or may be a bill payment.
+- **`paycheck_plan(today, days)`** (a function): each pay date from the current one through the next 45 days, with what it funds (per-paycheck transfers, bills and budget lines) and what's left of the check.
+- **`debt_payoff_plan(today, extra)`** (a function): each debt in plan order, with its payoff month and interest when minimums plus the extra debt line roll from one debt to the next.
 - **`refresh_runs`**: every refresh, and whether it worked. A failed one keeps the previous numbers.
 
 `what_if(changes)` is a read-only function on top of these.

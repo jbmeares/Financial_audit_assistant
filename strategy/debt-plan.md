@@ -4,13 +4,15 @@ James's order, from his interview on 2026-11-11. Balances, APRs, minimums and pr
 
 ## Order
 
-1. **Promo balances first.** Any 0% or deferred-interest balance gets paid off before its promo ends, soonest end date first (`promo_end_on`). "So we don't get screwed over by ourselves."
+1. **Promo balances first.** Any 0% or deferred-interest balance gets paid off before its promo ends, soonest end date first. One card can carry several promo parts, each with its own amount and end date (`ref.debt_promos`); the rest of its balance is at the regular APR (James, 2026-11-14, about CareCredit). "So we don't get screwed over by ourselves."
 2. **Then avalanche.** Highest APR first, with as much as the budget can take.
 3. **Free up money every pay cycle.** Release as much per paycheck as the household can handle, and send it to the current target. Each debt paid off adds its payment to the next one.
 
 The 401k loan is not in this plan. It's deducted from pay automatically ([goals.md](goals.md)).
 
 **The loan from Katelyn's mom** sits outside the avalanche. It has no interest and no schedule, but James plans to pay it off with the tax refund or bonus in early 2027 (said 2026-11-11). "I hate owing people money."
+
+The plan as it stands, with a payoff month for each debt, is `query` on `calc.debt_payoff_plan()` ([how it's worked out](../data/calculations.md)).
 
 ## Windfalls
 
