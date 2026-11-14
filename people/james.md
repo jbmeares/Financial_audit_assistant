@@ -27,7 +27,7 @@ Everything: all named actions, plus repo changes in Claude Code. [Rule 20](../co
 
 ## Household
 
-- Katelyn. Her profile waits for her own interview.
+- Katelyn. See [katelyn.md](katelyn.md).
 - Two kids: Amelia, born January 2023, and Clara, born March 2026.
 - Two dogs: Cricket, a Lab, and Oliver, a Beagle.
 - Several chickens.
