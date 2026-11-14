@@ -106,12 +106,39 @@ select pg_temp.check((select plan_order is null and notes @> array['No balance o
                         from calc.debt_payoff_plan('2026-02-10') where debt_key = 'nobal'),
   'a debt with no balance is named, never guessed');
 
+-- Several promos on part of a balance (James's CareCredit, 2026-11-14), and promos that ended.
+-- The promo card (600.00) gets a 100.00 promo ending Mar 15 and a 200.00 one ending May 15;
+-- the other 300.00 is at its APR from the start.
+insert into ref.debt_promos (debt_key, amount, ends_on, valid_from) values
+  ('promo', 100.00, '2026-03-15', '2026-01-01'),
+  ('promo', 200.00, '2026-05-15', '2026-01-01');
+select calc.refresh_all(null, '2026-02-10');
+select pg_temp.check((select not promo_at_risk and promo_end_on = '2026-03-15'
+                             and notes @> array['On promo: $100.00 by Mar 15, 2026, $200.00 by May 15, 2026. The rest is at the full APR.']
+                        from calc.debt_payoff_plan('2026-02-10') where debt_key = 'promo'),
+  'promo parts paid off in time aren''t flagged; the note lists each one');
+select pg_temp.check((select total_interest > 17.45 from calc.debt_payoff_plan('2026-02-10') where debt_key = 'promo'),
+  'the part not on promo is charged interest during the promos');
+select pg_temp.check((select promo_at_risk from calc.debt_payoff_plan('2026-02-10', 0) where debt_key = 'promo'),
+  'on minimums alone the promo parts can''t clear in time');
+update ref.debts set apr = 10.000 where debt_key = 'promo';
+select calc.refresh_all(null, '2026-02-10');
+select pg_temp.check((select string_agg(debt_key, ',' order by plan_order) from calc.debt_payoff_plan('2026-02-10') where in_plan) = 'promo,card,loan',
+  'a debt with an active promo goes first even at a low APR');
+select pg_temp.check((select promo_end_on = '2026-05-15' from calc.debt_payoff_plan('2026-04-01') where debt_key = 'promo'),
+  'after the first promo ends, the next one is shown');
+select pg_temp.check((select string_agg(debt_key, ',' order by plan_order) from calc.debt_payoff_plan('2026-06-01') where in_plan) = 'card,promo,loan'
+                     and (select promo_at_risk is null and promo_end_on is null from calc.debt_payoff_plan('2026-06-01') where debt_key = 'promo'),
+  'once every promo has ended the debt takes its APR place');
+
 -- ---------------------------------------------------------------- access
 
 select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from calc.paycheck_plan(''2026-02-10'')') = '5',
   'the assistant can read the paycheck plan');
 select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from calc.debt_payoff_plan(''2026-02-10'')') = '5',
   'the assistant can read the payoff plan');
+select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from ref.current_debt_promos') = '2',
+  'the assistant can read the promos');
 select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from ref.current_debts where not in_payoff_plan') = '1',
   'the assistant can see which debts are outside the plan');
 
