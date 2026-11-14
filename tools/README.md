@@ -12,7 +12,7 @@ What each finance MCP tool does and when to use it. One file per tool.
 
 ## The tools
 
-The connector is "Household finance" on claude.ai, and `.mcp.json` in Claude Code. Both reach the same server.
+The connector is "Household finance" on claude.ai, and `.mcp.json` in Claude Code. Both reach the same server. On claude.ai, the [household-finance skill](claude-ai-skill.md) starts the routine.
 
 | Tool | Kind | Use it for |
 | --- | --- | --- |
