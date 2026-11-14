@@ -43,7 +43,7 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
   Every other field except tolerance, note, `pays_account_key`, `category` and `basic_necessity` is required. A field nobody knows becomes an open question, never a guess (rule 6).
 
   Two tags, set by James (null until tagged):
-    - `category`: housing, utilities, debt, insurance, kids, health, subscriptions or household (the list in use; a new one is a lowercase word or two).
+    - `category`: housing, utilities, debt, insurance, kids, health, food, car, subscriptions or household (the list in use; a new one is a lowercase word or two).
     - `basic_necessity`: true when the bill counts toward a month of basic necessities for the Emergency Fund ladder ([strategy/on-track.md](../strategy/on-track.md)).
 - **`bill_aliases`**: names a bill shows up as in transactions.
 - **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first).
