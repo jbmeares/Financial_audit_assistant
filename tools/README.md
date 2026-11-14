@@ -22,6 +22,7 @@ The connector is "Household finance" on claude.ai, and `.mcp.json` in Claude Cod
 | [read_context](read_context.md) | read | A file from this repo |
 | [confirm_match](confirm_match.md) | action | A pending match is a bill payment |
 | [reject_match](reject_match.md) | action | A pending match is wrong |
+| [reopen_match](reopen_match.md) | action | A rejection was a mistake |
 | [record_balance](record_balance.md) | action | Someone stated a balance |
 | [log_life_event](log_life_event.md) | action | Something happened, with a date |
 | [update_bill](update_bill.md) | action | A bill changed, is new or ended |

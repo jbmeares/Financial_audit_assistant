@@ -236,7 +236,7 @@ export const TOOLS: Tool[] = [
     name: "reject_match",
     title: "Reject a proposed match",
     description:
-      "Dismisses a proposed match for good: that transaction and bill are never paired again. Use when the person says a proposed pairing is wrong.",
+      "Dismisses a proposed match: the matcher never pairs that transaction and bill again. Use when the person says a proposed pairing is wrong. If a rejection was a mistake, reopen_match takes it back.",
     inputSchema: {
       type: "object",
       properties: {
@@ -252,6 +252,28 @@ export const TOOLS: Tool[] = [
       only(args, ["person", "match_id", "reason"]);
       const row = await action(db, "reject_match", [str(args, "person"), int(args, "match_id"), str(args, "reason", false)]);
       return { result: row, lead: "Rejected. That pairing won't come back." };
+    },
+  },
+  {
+    name: "reopen_match",
+    title: "Take back a mistaken rejection",
+    description:
+      "Puts a match a person rejected back to pending, so it can be confirmed. Use only when the person says the rejection was a mistake (for example, their answer was misread). Needs a reason. The rejection stays on record in the match's note. Then confirm it with confirm_match if they said yes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        person: PERSON,
+        match_id: { type: "integer", description: "knowledge.proposed_matches.id" },
+        reason: { type: "string", description: "What was wrong about the rejection." },
+      },
+      required: ["person", "match_id", "reason"],
+      additionalProperties: false,
+    },
+    annotations: WRITE,
+    handler: async (args, { db }) => {
+      only(args, ["person", "match_id", "reason"]);
+      const row = await action(db, "reopen_match", [str(args, "person"), int(args, "match_id"), str(args, "reason")]);
+      return { result: row, lead: "Reopened. It's pending again and can be confirmed." };
     },
   },
   {
