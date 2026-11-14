@@ -16,6 +16,6 @@ Repeatable conversations. Each one is a short script: what to call, what to say 
 | [payday.md](payday.md) | Income just landed |
 | [new-bill.md](new-bill.md) | A bill is new or has changed |
 | [statement-upload.md](statement-upload.md) | Someone shares a statement |
-| [monthly-review.md](monthly-review.md) | The monthly clean-up |
+| [monthly-review.md](monthly-review.md) | The monthly clean-up, including the Era missing-bills check |
 
 These are first drafts. The tools they name are built in Block F, so details may change once the tools exist.
