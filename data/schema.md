@@ -33,14 +33,14 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
 
 - **`people`**: `james`, `katelyn`.
 - **`accounts`**: an Era account mapped to a name, an owner (a person or `joint`), a kind (checking, savings, card, loan, retirement, investment) and a role in words. `connection` says how it reaches us: `era` (it should come through Era; with no Era account yet, it's still to connect) or `manual` (tracked by hand: people tell us the balance). This is the running list of accounts that should be connected.
-- **`bills`**: name, amount, fixed or variable, tolerance, the account it's paid from, autopay, and a schedule. The schedule is a cadence plus what that cadence needs:
+- **`bills`**: name, amount, fixed or variable, tolerance, the account it's paid from, autopay, and a schedule. A card bill also names the card it pays down (`pays_account_key`), so a payment into that card from any account can match it. The schedule is a cadence plus what that cadence needs:
     - `monthly`: a due day.
     - `every_other_month`, `quarterly`, `semiannual`, `annual`: a due day and one known due date.
     - `weekly`, `biweekly`: one known due date.
     - `every_n_weeks`: one known due date and how many weeks apart (`every_weeks`, for example 6).
     - `per_paycheck`: the income source (`income_key`) whose pay dates it falls on.
 
-  Every other field except tolerance and note is required. A field nobody knows becomes an open question, never a guess (rule 6).
+  Every other field except tolerance, note and `pays_account_key` is required. A field nobody knows becomes an open question, never a guess (rule 6).
 - **`bill_aliases`**: names a bill shows up as in transactions.
 - **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first).
 - **`income_sources`**: person, amount, cadence (monthly or biweekly), one known pay date to count from, and the deposit account. The known pay date is the scheduled one: a pay date on a weekend or bank holiday is paid the bank business day before.
@@ -60,7 +60,7 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 
 ## knowledge
 
-- **`proposed_matches`**: a transaction paired with a bill and a month, with a score and a reason. Status is pending, ambiguous (two bills tied), confirmed or rejected. A pairing can be proposed only once, so a rejected one never comes back.
+- **`proposed_matches`**: a transaction paired with a bill and a month, with a score and a reason. For a card bill the transaction can be the payment received on the card, so it matches whichever account sent it; only one side of a transfer is proposed. Status is pending, ambiguous (two bills tied), confirmed or rejected. A pairing can be proposed only once, so a rejected one never comes back.
 - **`open_questions`**: a question for a person, or `new_context` parked from claude.ai to be filed in the repo later (rule 22).
 - **`life_events`**: date, title, amount and the path of its story file in `life/`.
 - **`action_calls`**: every named action and what it returned. It makes a repeated call harmless.
