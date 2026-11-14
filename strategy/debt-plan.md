@@ -18,7 +18,7 @@ Bonuses and tax refunds come around the start of each year. James puts them towa
 
 ## Cash floor
 
-Right now: "don't go so negative that we can't pay for things." Extra payments never take a bank account below $0 before the next income, which matches what "on track" means today ([on-track.md](on-track.md)). This holds until a budget replaces it (James, 2026-11-11).
+Right now: "don't go so negative that we can't pay for things." Extra payments never take a bank account below $0 before the next income, which matches what "on track" means today ([on-track.md](on-track.md)). The budget ([budget.md](budget.md)) doesn't replace it: the $0 floor stays as the backstop "until we start seeing progress" (James, 2026-11-14). Extra payments come from the budget's extra debt line, and only while the floor holds.
 
 ## What would change the plan
 
