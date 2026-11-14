@@ -1,6 +1,6 @@
 # reject_match
 
-*Action.* Dismisses a proposed match for good. That transaction and bill are never paired again.
+*Action.* Dismisses a proposed match. The matcher never pairs that transaction and bill again. If the rejection was a mistake, [reopen_match](reopen_match.md) takes it back.
 
 **Takes** `person`, `match_id`, optionally `reason`.
 

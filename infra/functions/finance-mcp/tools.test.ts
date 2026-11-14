@@ -69,7 +69,7 @@ Deno.test("tools/list has every tool in the build spec", () => {
   const names = TOOLS.map((t) => t.name).sort();
   for (
     const n of [
-      "get_briefing", "read_context", "query", "what_if", "confirm_match", "reject_match", "record_balance",
+      "get_briefing", "read_context", "query", "what_if", "confirm_match", "reject_match", "reopen_match", "record_balance",
       "log_life_event", "update_bill", "void_entry", "log_question", "answer_question", "create_era_rule",
     ]
   ) assert(names.includes(n), `missing ${n}`);
@@ -125,6 +125,9 @@ Deno.test("confirm_match, reject_match and void_entry", async () => {
 
   const rejected = await call("reject_match", { person: "james", match_id: Number(m2.id), reason: "not the phone" });
   assertEquals((rejected.result as { status: string }).status, "rejected");
+  await refuses("reopen_match", { person: "james", match_id: Number(m2.id) }, /reason is required/);
+  const reopened = await call("reopen_match", { person: "james", match_id: Number(m2.id), reason: "misread" });
+  assertEquals((reopened.result as { status: string }).status, "pending");
 
   await refuses("void_entry", { person: "james", entry: "payment", entry_id: payment.id }, /reason is required/);
   const v = await call("void_entry", { person: "james", entry: "payment", entry_id: payment.id, reason: "test void" });

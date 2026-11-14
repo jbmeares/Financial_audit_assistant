@@ -60,7 +60,7 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 
 ## knowledge
 
-- **`proposed_matches`**: a transaction paired with a bill and a month, with a score and a reason. For a card bill the transaction can be the payment received on the card, so it matches whichever account sent it; only one side of a transfer is proposed. Status is pending, ambiguous (two bills tied), confirmed or rejected. A pairing can be proposed only once, so a rejected one never comes back.
+- **`proposed_matches`**: a transaction paired with a bill and a month, with a score and a reason. For a card bill the transaction can be the payment received on the card, so it matches whichever account sent it; only one side of a transfer is proposed. Status is pending, ambiguous (two bills tied), confirmed or rejected. A pairing can be proposed only once, so the matcher never brings a rejected one back; only `reopen_match` (a person saying the rejection was a mistake) does.
 - **`open_questions`**: a question for a person, or `new_context` parked from claude.ai to be filed in the repo later (rule 22).
 - **`life_events`**: date, title, amount and the path of its story file in `life/`.
 - **`action_calls`**: every named action and what it returned. It makes a repeated call harmless.
