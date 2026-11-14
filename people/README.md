@@ -10,4 +10,4 @@ One profile per person, built by interview. Read the profile of whoever is talki
 - Anything the person didn't say. Label inferences as **(inferred)** (rule 6).
 - Fault or comparisons between people (rule 19).
 
-Profiles are written in the interview threads (Block G). Katelyn's waits until her access model is settled.
+Profiles are written in the interview threads (Block G).
