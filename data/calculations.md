@@ -55,6 +55,8 @@ The matcher looks at money-out transactions from the last 45 days that aren't pa
   - A pairing a person rejected is never proposed again.
   - Nothing is confirmed automatically.
 - **After a "no".** Once a proposal is rejected, the next-best bill can be proposed the following night.
+- **Charges Era drops.** Each run first withdraws any open proposal whose transaction Era no longer sends (`removed_at` set), such as a pending charge that posted under a new id or a copy on a replaced account. The posted copy is then proposed on its own. Removed transactions are never proposed.
+- **Charges still pending at the bank.** A pending charge is proposed like any other, so the bill shows as matched and isn't projected a second time. It can't be confirmed until it posts, because a pending charge can vanish and post under a new id. The briefing's pending matches item marks these with `still_pending` and counts them apart from the ones ready for a yes or no.
 - **Withdrawn proposals.** A proposal set to `rejected` with no person in `decided_by` was withdrawn by a build, not refused by a person. The matcher may propose that pairing again under the current rules. The proposals from the first real run were withdrawn this way on 2026-11-10, because the old rules made them.
 
 ## Cash projection (`calc.cash_projection`, `calc.account_balances`)
