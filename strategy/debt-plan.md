@@ -4,7 +4,7 @@ James's order, from his interview on 2026-11-11. Balances, APRs, minimums and pr
 
 ## Order
 
-1. **Promo balances first.** Any 0% or deferred-interest balance gets paid off before its promo ends, soonest end date first. One card can carry several promo parts, each with its own amount and end date (`ref.debt_promos`); the rest of its balance is at the regular APR (James, 2026-11-14, about CareCredit). "So we don't get screwed over by ourselves."
+1. **Promo balances first.** Any 0% or deferred-interest balance gets paid off before its promo ends, soonest end date first. One card can carry several promo parts, each with its own amount and end date (`ref.debt_buckets`, which also holds reduced-APR plans); the rest of its balance is at the regular APR (James, 2026-11-14, about CareCredit). "So we don't get screwed over by ourselves."
 2. **Then avalanche.** Highest APR first, with as much as the budget can take.
 3. **Free up money every pay cycle.** Release as much per paycheck as the household can handle, and send it to the current target. Each debt paid off adds its payment to the next one.
 

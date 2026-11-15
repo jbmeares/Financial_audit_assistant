@@ -109,9 +109,9 @@ select pg_temp.check((select plan_order is null and notes @> array['No balance o
 -- Several promos on part of a balance (James's CareCredit, 2026-11-14), and promos that ended.
 -- The promo card (600.00) gets a 100.00 promo ending Mar 15 and a 200.00 one ending May 15;
 -- the other 300.00 is at its APR from the start.
-insert into ref.debt_promos (debt_key, amount, ends_on, valid_from) values
-  ('promo', 100.00, '2026-03-15', '2026-01-01'),
-  ('promo', 200.00, '2026-05-15', '2026-01-01');
+insert into ref.debt_buckets (debt_key, kind, amount, apr, ends_on, as_of, valid_from) values
+  ('promo', 'deferred_interest', 100.00, 30, '2026-03-15', '2026-01-15', '2026-01-01'),
+  ('promo', 'deferred_interest', 200.00, 30, '2026-05-15', '2026-01-15', '2026-01-01');
 select calc.refresh_all(null, '2026-02-10');
 select pg_temp.check((select not promo_at_risk and promo_end_on = '2026-03-15'
                              and notes @> array['On promo: $100.00 by Mar 15, 2026, $200.00 by May 15, 2026. The rest is at the full APR.']
@@ -137,7 +137,7 @@ select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from cal
   'the assistant can read the paycheck plan');
 select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from calc.debt_payoff_plan(''2026-02-10'')') = '5',
   'the assistant can read the payoff plan');
-select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from ref.current_debt_promos') = '2',
+select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from ref.current_debt_buckets') = '2',
   'the assistant can read the promos');
 select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) from ref.current_debts where not in_payoff_plan') = '1',
   'the assistant can see which debts are outside the plan');

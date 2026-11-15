@@ -80,8 +80,10 @@ Each debt shows the following:
 
 - **Balance:** owed, as a positive number, using the same starting-balance rule as above.
 - **From `ref.debts`:** the APR and minimum payment.
-- **Estimated monthly interest:** balance × APR ÷ 12.
-- **Also:** the promo end date and the payoff priority.
+- **Estimated monthly interest:** the sum over the debt's parts. A debt with no parts is balance × APR ÷ 12.
+- **Also:** the promo end date (the next running promo's end, for a debt with parts) and the payoff priority.
+- **Parts** (`ref.debt_buckets`, shown in `calc.debt_parts`): promos still running come first, soonest end first, then reduced-APR plans, then the rest at the APR. Each part is capped so they never add up to more than the balance. A running promo is charged nothing; a reduced-APR plan is charged its own rate; the rest is charged the APR. A promo whose end date has passed drops out, so its amount joins the rest.
+- **What it doesn't know.** Part amounts are from the statement in `as_of`; the balance is today's. So payments since that statement come off the full-APR part first (card issuers put anything above the minimum on the highest rate) *(assumption)*, until a newer statement is entered. Back interest keeps growing after the statement, so the stored figure is a floor.
 
 A debt with no balance is named in the briefing, never guessed.
 
@@ -100,7 +102,8 @@ The briefing is one row. It records the date it was built (`today`), when the la
 | Last pull failed on the key (auth) / failed otherwise, partial, stuck, or no pull today | RED / YELLOW |
 | Era balances (checking, savings, cards, loans) dated before yesterday; says so plainly when every bank is behind | YELLOW |
 | Balances older than 3 days, accounts or debts with no balance | YELLOW |
-| Late bills, pending matches, promo rate ending within 30 days | YELLOW |
+| Late bills, pending matches, promo rate ending within 30 days (for a debt with parts: one item per promo, with its amount and back interest) | YELLOW |
+| A debt's balance split into parts, written out (`debt_parts`), for when someone asks | GREEN |
 | No income on file ("projection incomplete") | YELLOW |
 | Next income, bills due before it (or in the next 14 days with no income), open questions | GREEN |
 
@@ -137,12 +140,13 @@ A function, not a table, so it is always worked out fresh from `ref` and the las
 
 The debt plan as it stands ([debt-plan.md](../strategy/debt-plan.md)), worked out from `calc.debt_snapshot`. One row per current debt.
 
-- **Promos.** A promo is a part of a debt's balance with its own end date (`ref.debt_promos`). A card can have several. A debt with `promo_end_on` and no promo rows counts as all on promo. A promo counts only until its end date passes.
+- **Promos.** A promo is a part of a debt's balance with its own end date (`ref.debt_buckets`, kind `deferred_interest` or `zero_apr`). A card can have several. A debt with `promo_end_on` and no parts at all counts as all on promo. A promo counts only until its end date passes.
+- **Reduced-APR plans.** A `reduced_apr` part is charged its own rate, and it is paid down last: payments go to promos, then the full-APR rest, then the plan.
 - **Plan order.** Debts with an active promo first, soonest end first. Then the highest APR. Ties go to the smaller balance, then the key *(proposed default)*. If a debt's `payoff_priority` disagrees with this order, the row's notes say so, and the written plan wins.
 - **Scheduled payments.** A debt the household pays on a schedule names that bill in `ref.debts.payment_bill_key` (the truck: $500 each Lincoln paycheck). Its planned monthly payment is the larger of its minimum and the bill's monthly figure from `calc.bill_monthly` (a per-paycheck bill follows its income: 26 a year for a biweekly check). The row's notes say when the bill sets the payment, and `minimum_payment` still shows the required one.
 - **The monthly amount.** Every in-plan minimum (or scheduled payment) plus the extra debt budget line (`extra-debt`), or `extra` when given. It never shrinks, so each paid-off minimum or scheduled payment rolls into the next target.
 - **Each month, from next month on** (this month's payments count as already planned, as in `what_if`):
-  1. Interest is added on the part of the balance not on a running promo: that part × APR ÷ 12. A promo part runs interest-free through its end month *(assumption: deferred interest charged back at the end isn't modelled)*.
+  1. Interest is added: nothing on a running promo part (through its end month), the plan's rate on a reduced-APR part, the APR on the rest. A promo part still owed after its end month adds its back interest (the amount on the last statement, so at least that much) and joins the rest.
   2. Every debt gets its minimum (or its scheduled payment).
   3. What's left goes to the first unpaid debt in plan order, then the next.
   Each payment comes off the debt's soonest-ending promo part first *(assumption, so the plan clears each deadline in turn)*.
