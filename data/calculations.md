@@ -87,7 +87,7 @@ A debt with no balance is named in the briefing, never guessed.
 
 ## Briefing (`calc.briefing`)
 
-The briefing is one row. It records the date it was built (`today`), when the last good pull finished (`numbers_as_of`), the next income date, an overall level, and a list of items, with RED items first. The levels follow rule 11.
+The briefing is one row. It records the date it was built (`today`), when the last good pull finished (`numbers_as_of`; during a pull's own refresh, the time of that refresh), the next income date, an overall level, and a list of items, with RED items first. The levels follow rule 11. `numbers_as_of` says when we last asked Era, not how new the bank's balances are; the "dated before yesterday" item covers that.
 
 | Item | Level |
 | --- | --- |
@@ -95,6 +95,7 @@ The briefing is one row. It records the date it was built (`today`), when the la
 | Overdraft later in the 60 days, or with no income on file | YELLOW |
 | Key expired / expiring within 30 days | RED / YELLOW |
 | Last pull failed on the key (auth) / failed otherwise, partial, stuck, or no pull today | RED / YELLOW |
+| Era balances (checking, savings, cards, loans) dated before yesterday; says so plainly when every bank is behind | YELLOW |
 | Balances older than 3 days, accounts or debts with no balance | YELLOW |
 | Late bills, pending matches, promo rate ending within 30 days | YELLOW |
 | No income on file ("projection incomplete") | YELLOW |
