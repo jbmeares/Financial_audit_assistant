@@ -33,4 +33,5 @@ Food, Animals and Fuel keep those names, because the Level 3 Emergency Fund coun
 - What's left: `get_briefing` (budget item), or `query` on `calc.budget_status()`.
 - What each paycheck funds and what's left of it: `query` on `calc.paycheck_plan()`.
 - What counted against a line: `query` on `calc.budget_spending(from, to)`.
+- The whole plan on one page: the Budget Map (https://claude.ai/artifact/GAQ12uWHeCk57VsDjkRuGY). It reads the paycheck plan, bills, transfers, budget lines and cash projection live each time it opens, so it never needs rebuilding. For the account paychecks land in, it takes the budget lines out on each payday as if spent as planned.
 - Changing an amount or a rule is a Claude Code job for now. On claude.ai, log it as an open question.
