@@ -135,15 +135,16 @@ The debt plan as it stands ([debt-plan.md](../strategy/debt-plan.md)), worked ou
 
 - **Promos.** A promo is a part of a debt's balance with its own end date (`ref.debt_promos`). A card can have several. A debt with `promo_end_on` and no promo rows counts as all on promo. A promo counts only until its end date passes.
 - **Plan order.** Debts with an active promo first, soonest end first. Then the highest APR. Ties go to the smaller balance, then the key *(proposed default)*. If a debt's `payoff_priority` disagrees with this order, the row's notes say so, and the written plan wins.
-- **The monthly amount.** Every in-plan minimum plus the extra debt budget line (`extra-debt`), or `extra` when given. It never shrinks, so each paid-off minimum rolls into the next target.
+- **Scheduled payments.** A debt the household pays on a schedule names that bill in `ref.debts.payment_bill_key` (the truck: $500 each Lincoln paycheck). Its planned monthly payment is the larger of its minimum and the bill's monthly figure from `calc.bill_monthly` (a per-paycheck bill follows its income: 26 a year for a biweekly check). The row's notes say when the bill sets the payment, and `minimum_payment` still shows the required one.
+- **The monthly amount.** Every in-plan minimum (or scheduled payment) plus the extra debt budget line (`extra-debt`), or `extra` when given. It never shrinks, so each paid-off minimum or scheduled payment rolls into the next target.
 - **Each month, from next month on** (this month's payments count as already planned, as in `what_if`):
   1. Interest is added on the part of the balance not on a running promo: that part × APR ÷ 12. A promo part runs interest-free through its end month *(assumption: deferred interest charged back at the end isn't modelled)*.
-  2. Every debt gets its minimum.
+  2. Every debt gets its minimum (or its scheduled payment).
   3. What's left goes to the first unpaid debt in plan order, then the next.
   Each payment comes off the debt's soonest-ending promo part first *(assumption, so the plan clears each deadline in turn)*.
 - **Each row** gives the payoff month, months to payoff, and total interest until then. `is_target` marks the current target. `promo_end_on` is the next active promo's end. `promo_at_risk` means some promo part is still owed at the end of its month (or, for a promo ending this month, is owed now).
 - **Listed but given no money**, with a note: a debt marked outside the plan (`ref.debts.in_payoff_plan` false, such as the loan from Katelyn's mom), a debt with no balance on file (never guessed), and a debt with nothing owed. Other notes: a stale balance, a $0 minimum, and a payoff past 50 years (reported as no date).
-- **What it doesn't know.** It uses each debt's minimum from `ref.debts`, not a bill that pays more (for example a per-paycheck loan payment), and it doesn't check the cash floor. Payoff dates are estimates.
+- **What it doesn't know.** A payment above the minimum counts only through `payment_bill_key`. It doesn't check the cash floor. Payoff dates are estimates.
 
 ## Who can run what
 

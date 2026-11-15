@@ -46,7 +46,7 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
     - `category`: housing, utilities, debt, insurance, kids, health, food, car, subscriptions or household (the list in use; a new one is a lowercase word or two).
     - `basic_necessity`: true when the bill counts toward a month of basic necessities for the Emergency Fund ladder ([strategy/on-track.md](../strategy/on-track.md)).
 - **`bill_aliases`**: names a bill shows up as in transactions.
-- **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first). `in_payoff_plan` is false for a debt the written plan keeps outside the avalanche.
+- **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first). `in_payoff_plan` is false for a debt the written plan keeps outside the avalanche. `payment_bill_key` names the bill that pays the debt on a schedule when it pays more than the minimum (the truck's per-paycheck payment), so the payoff plan counts it.
 - **`debt_promos`**: a promo balance on a debt: how much of the balance is on it and when it ends. A card can have several; the rest of its balance is at the APR.
 - **`income_sources`**: person, amount, cadence (monthly or biweekly), one known pay date to count from, and the deposit account. The known pay date is the scheduled one: a pay date on a weekend or bank holiday is paid the bank business day before.
 - **`transfers`**: planned moves between the household's own accounts, such as Joint to Bill Pay each payday. Each has a from-account, a to-account, an amount and a schedule, with the same cadences as bills. They move money in the projection but are never bills and never matched.
