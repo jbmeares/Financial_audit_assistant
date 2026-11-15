@@ -93,6 +93,9 @@ The briefing is one row. It records the date it was built (`today`), when the la
 | --- | --- |
 | Overdraft before the next income | RED |
 | Overdraft later in the 60 days, or with no income on file | YELLOW |
+| Dip below $0 that stays within the account's overdraft buffer (no fee expected) | YELLOW |
+
+"Overdraft" means going below -`overdraft_buffer` on `ref.accounts` (0 by default, so below $0). All four Chase checking accounts have a $50 buffer: Chase charges no insufficient-funds fee until a balance is below -$50 (James, 2026-11-15).
 | Key expired / expiring within 30 days | RED / YELLOW |
 | Last pull failed on the key (auth) / failed otherwise, partial, stuck, or no pull today | RED / YELLOW |
 | Era balances (checking, savings, cards, loans) dated before yesterday; says so plainly when every bank is behind | YELLOW |
