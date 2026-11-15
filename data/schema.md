@@ -32,7 +32,7 @@ Claude's read role can read `raw` (to look up transactions and balances) but nev
 Every row has `valid_from` and `valid_to`. A change closes the old row and adds a new one, so nothing is overwritten. Each thing has a short stable key (for example `phone`) shared by all its versions. The `current_*` views show the rows in effect today.
 
 - **`people`**: `james`, `katelyn`.
-- **`accounts`**: an Era account mapped to a name, an owner (a person or `joint`), a kind (checking, savings, card, loan, retirement, investment) and a role in words. `connection` says how it reaches us: `era` (it should come through Era; with no Era account yet, it's still to connect) or `manual` (tracked by hand: people tell us the balance). This is the running list of accounts that should be connected.
+- **`accounts`**: an Era account mapped to a name, an owner (a person or `joint`), a kind (checking, savings, card, loan, retirement, investment) and a role in words. `connection` says how it reaches us: `era` (it should come through Era; with no Era account yet, it's still to connect) or `manual` (tracked by hand: people tell us the balance). `overdraft_buffer` is how far below $0 the bank lets it go before charging a fee (0 means any dip counts); the briefing uses it to decide RED or YELLOW. This is the running list of accounts that should be connected.
 - **`bills`**: name, amount, fixed or variable, tolerance, the account it's paid from, autopay, and a schedule. A card bill also names the card it pays down (`pays_account_key`), so a payment into that card from any account can match it. The schedule is a cadence plus what that cadence needs:
     - `monthly`: a due day.
     - `every_other_month`, `quarterly`, `semiannual`, `annual`: a due day and one known due date.
