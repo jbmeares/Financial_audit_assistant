@@ -8,6 +8,8 @@ James's order, from his interview on 2026-11-11. Balances, APRs, minimums and pr
 2. **Then avalanche.** Highest APR first, with as much as the budget can take.
 3. **Free up money every pay cycle.** Release as much per paycheck as the household can handle, and send it to the current target. Each debt paid off adds its payment to the next one.
 
+**The truck** is paid a fixed amount every Lincoln paycheck, more than its required monthly payment (James, 2026-11-14). The amounts are in `ref.debts` and the `auto-loan` bill. The payoff plan counts the per-paycheck amount, and when the truck is gone that money rolls to the next target.
+
 The 401k loan is not in this plan. It's deducted from pay automatically ([goals.md](goals.md)).
 
 **The loan from Katelyn's mom** sits outside the avalanche. It has no interest and no schedule, but James plans to pay it off with the tax refund or bonus in early 2027 (said 2026-11-11). "I hate owing people money."
