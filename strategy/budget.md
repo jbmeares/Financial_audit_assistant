@@ -24,7 +24,7 @@ Food, Animals and Fuel keep those names, because the Level 3 Emergency Fund coun
 
 ## When to revisit
 
-- **January 2027.** Lincoln take-home should rise once the health plan moves to CHAMPVA. Redo the transfer split from the first January deposit.
+- **January 2027.** Lincoln take-home should rise once the health plan moves to CHAMPVA. Redo the transfer split from the first January deposit. The December Lincoln transfers are smaller for the truck's holiday pause and go back to their normal amount with the first January check ([debt-plan.md](debt-plan.md)).
 - **When a card is paid off.** Its minimum leaves the bills, so the Bill Pay transfers can drop or the extra debt line can grow.
 - **When a line runs over two months in a row.** That's a pattern, not a one-off ([on-track.md](on-track.md)). Change the line or the habit, one fix at a time.
 

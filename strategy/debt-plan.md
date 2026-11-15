@@ -10,6 +10,8 @@ James's order, from his interview on 2026-11-11. Balances, APRs, minimums and pr
 
 **The truck** is paid a fixed amount every Lincoln paycheck, more than its required monthly payment (James, 2026-11-14). The amounts are in `ref.debts` and the `auto-loan` bill. The payoff plan counts the per-paycheck amount, and when the truck is gone that money rolls to the next target.
 
+**Holiday pause, Nov 2026 to Jan 2027** (James, 2026-11-15). The truck payment is skipped on the Nov 20, Dec 4, Dec 18 and Dec 31 Lincoln checks and starts again with the first January check, to leave room for Christmas gifts, Katelyn's birthday and some breathing room. Capital One showed the loan paid ahead, with the next payment due Jan 16, 2027. The pause is a gap between two versions of the `auto-loan` bill, and the payoff plan plans nothing on the truck for a month the bill is paused. The money stays in Joint: the Lincoln transfer to Bill Pay is smaller on the December checks (`ref.transfers`). Nov 20's transfer stays full, so that skipped payment covers Bill Pay's November shortfall.
+
 The 401k loan is not in this plan. It's deducted from pay automatically ([goals.md](goals.md)).
 
 **The loan from Katelyn's mom** sits outside the avalanche. It has no interest and no schedule, but James plans to pay it off with the tax refund or bonus in early 2027 (said 2026-11-11). "I hate owing people money."
