@@ -70,7 +70,7 @@ Deno.test("tools/list has every tool in the build spec", () => {
   for (
     const n of [
       "get_briefing", "read_context", "query", "what_if", "confirm_match", "reject_match", "reopen_match", "record_balance",
-      "log_life_event", "update_bill", "void_entry", "log_question", "answer_question", "create_era_rule",
+      "log_life_event", "update_bill", "void_entry", "log_question", "answer_question", "log_note", "create_era_rule",
     ]
   ) assert(names.includes(n), `missing ${n}`);
   for (const t of TOOLS) assert(t.description.length > 40 && t.inputSchema.type === "object", t.name);
@@ -149,6 +149,19 @@ Deno.test("update_bill, log_life_event, log_question and answer_question", async
   const qid = (q.result as { id: number }).id;
   const a = await call("answer_question", { person: "james", question_id: qid, answer: "Yes" });
   assertEquals((a.result as { status: string }).status, "answered");
+});
+
+Deno.test("log_note saves a note once and tells the chat to say so", async () => {
+  const args = { person: "katelyn", kind: "feedback", said: "That was clear", chat_answer: "Due before Friday: phone", topic: "briefing" };
+  const n1 = await call("log_note", args);
+  const n2 = await call("log_note", args);
+  const row = n1.result as { id: number; status: string; person: string };
+  assertEquals([row.status, row.person], ["new", "katelyn"]);
+  assertEquals(row.id, (n2.result as { id: number }).id);
+  assertMatch(n1.lead ?? "", /Noted/);
+  await refuses("log_note", { person: "james", kind: "gossip", said: "x" }, /kind must be/);
+  await refuses("log_note", { person: "james", kind: "fact" }, /said is required/);
+  await refuses("log_note", { person: "james", kind: "fact", said: "x", mood: "happy" }, /doesn't take: mood/);
 });
 
 Deno.test("read_context reads Markdown, lists folders and refuses infra/", async () => {

@@ -68,6 +68,7 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 
 - **`proposed_matches`**: a transaction paired with a bill and a month, with a score and a reason. For a card bill the transaction can be the payment received on the card, so it matches whichever account sent it; only one side of a transfer is proposed. Status is pending, ambiguous (two bills tied), confirmed or rejected. A pairing can be proposed only once, so the matcher never brings a rejected one back; only `reopen_match` (a person saying the rejection was a mistake) does.
 - **`open_questions`**: a question for a person, or `new_context` parked from claude.ai to be filed in the repo later (rule 22).
+- **`chat_notes`**: a note a chat saved as it happened, with who said it, the kind (correction, decision, fact, feedback, confusion), what was said, what the chat had answered, and whether it's `new` or `reviewed`. Only the review fields can change ([log_note](../tools/log_note.md)).
 - **`life_events`**: date, title, amount and the path of its story file in `life/`.
 - **`action_calls`**: every named action and what it returned. It makes a repeated call harmless.
 - **`tool_calls`**: every finance MCP tool call: the tool, the person, ok or error, and how long it took (F5).
@@ -107,6 +108,7 @@ The MCP's action tools call these and nothing else. Each one needs a person (`ja
 | `update_bill` | Changes a bill by closing the old row and adding a new one. Also creates a new bill, or ends one |
 | `void_entry` | Voids a payment, balance statement or adjustment with a reason. Voiding a confirmed match also rejects that pairing |
 | `log_question`, `answer_question` | Parks a question or new context, and answers it |
+| `log_note` | Saves a chat note: a correction, decision, fact, feedback or confusion |
 | `stage_era_rule`, `claim_era_rule`, `finish_era_rule` | The two steps of `create_era_rule`: store the previewed rule, claim it once for sending, record Era's answer |
 | `log_tool_call` | Writes `knowledge.tool_calls` |
 

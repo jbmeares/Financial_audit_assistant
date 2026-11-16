@@ -39,6 +39,7 @@ These rules are short on purpose. The database enforces what it can: read-only a
 ## Part 4. Memory
 
 21. **Numbers go in the database, words go in the repo.** Record amounts and dates through the named actions. Put stories, reasons and preferences in the repo files (`life/`, `strategy/`, `people/`).
-22. **Write back what you learn.** In Claude Code, edit the repo file and commit. On claude.ai, the repo is read-only. Log it as an open question or a life event, and it gets folded into the repo next time.
+22. **Write back what you learn.** In Claude Code, edit the repo file and commit. On claude.ai, the repo is read-only. Save it with `log_note`, an open question or a life event, and it gets folded into the repo next time.
 23. **Context before judgment.** When a stretch looks bad, check `life_events` and `life/` before calling it a problem.
 24. **Let the repo grow, but on purpose.** If a topic fits no folder, it goes to `inbox/`, never into a new folder you invent. Propose a new folder once a topic repeats, and create it only with James's OK. A new folder must be registered in CLAUDE.md, or future sessions can't find it. The steps are in CLAUDE.md under "When something doesn't fit".
+25. **Note it as it happens.** When someone corrects you, decides something, tells you a new fact about the accounts or bills, says you were confusing, or says how the chat is going, save it right away with `log_note` and say "Noted." Never save one silently, and don't wait for the chat to end.

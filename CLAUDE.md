@@ -21,6 +21,7 @@ On claude.ai you can't open these files directly. Use `read_context("<path>")`, 
 | A transaction that might be a bill | Pending matches in the briefing, then `confirm_match` or `reject_match` |
 | A balance someone just told you | `record_balance` |
 | A bill that changed or is new | `update_bill`, plus `playbooks/new-bill.md` |
+| Someone corrects you, decides something, shares a new fact, is confused, or gives feedback | `log_note` right away, then say "Noted." ([tools/log_note.md](tools/log_note.md)) |
 | A hard time, a loss, a windfall | `life/`, and constitution Part 2 before typing |
 | Debt plan, goals, what "on track" means | `strategy/` |
 | A routine conversation (payday, weekly check-in, statement upload) | `playbooks/` |

@@ -29,6 +29,7 @@ The connector is "Household finance" on claude.ai, and `.mcp.json` in Claude Cod
 | [void_entry](void_entry.md) | action | Undo a wrong ledger entry |
 | [log_question](log_question.md) | action | Park a question or new context |
 | [answer_question](answer_question.md) | action | Close an open question |
+| [log_note](log_note.md) | action | A correction, decision, new fact, confusion or feedback, as it happens |
 | [create_era_rule](create_era_rule.md) | action | A cleanup rule in Era, preview first |
 | [whoami](whoami.md) | read | Check the sign-in |
 
