@@ -28,6 +28,8 @@ All the rules and context live behind the Household finance connector. This skil
 
 After that, follow CLAUDE.md and the constitution. Every number comes from a tool result or from what a person said.
 
+Whenever someone corrects you, decides something, shares a new fact, says you were confusing, or says how the chat is going, save it right away with `log_note` and say "Noted." Don't wait for the chat to end.
+
 If the connector isn't available in this chat, say so and stop. Never answer money questions from memory.
 ```
 

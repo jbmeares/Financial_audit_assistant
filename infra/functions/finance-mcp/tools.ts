@@ -404,6 +404,32 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "log_note",
+    title: "Save a note for review",
+    description:
+      'Saves a note the moment something worth keeping happens, so James and the build sessions can learn from the chat without anyone relaying it. There is no end-of-chat step: note it as it happens. Save one when the person (1) corrects something you said ("correction"), (2) decides something ("decision"), (3) tells you something new about the accounts, bills, income or plans, like a card swap or a bill change ("fact"), (4) says something you said was confusing or unclear ("confusion"), or (5) says how the chat is going, good or bad, like "that worked well" ("feedback"). Then say "Noted." in your reply, every time: never save a note they don\'t see. Put what they said in said, in their words or close, and what you had just told them in chat_answer when the note is about it. Don\'t note what another tool already saved: something that happened on a date goes to log_life_event, a question nobody can answer now goes to log_question, and a story or new topic for a repo file goes to log_question as new_context. A correction is always noted, even when record_balance or another tool also saved the fix, because it shows where the chat went wrong. Katelyn can save notes (rule 20).',
+    inputSchema: {
+      type: "object",
+      properties: {
+        person: { ...PERSON, description: "Who said it: the person you're talking to." },
+        kind: { type: "string", enum: ["correction", "decision", "fact", "feedback", "confusion"] },
+        said: { type: "string", description: "What the person said, in their words or close to them." },
+        chat_answer: { type: "string", description: "What you had just said, when the note is about it. Short." },
+        topic: { type: "string", description: "A word or two, like \"budget\" or \"CareCredit\"." },
+      },
+      required: ["person", "kind", "said"],
+      additionalProperties: false,
+    },
+    annotations: WRITE,
+    handler: async (args, { db }) => {
+      only(args, ["person", "kind", "said", "chat_answer", "topic"]);
+      const row = await action(db, "log_note", [
+        str(args, "person"), str(args, "kind"), str(args, "said"), str(args, "chat_answer", false), str(args, "topic", false),
+      ]);
+      return { result: row, lead: 'Saved for review. Say "Noted." in your reply so they see it was saved.' };
+    },
+  },
+  {
     name: "answer_question",
     title: "Answer an open question",
     description: "Records a person's answer to an open question (knowledge.open_questions) and closes it.",
