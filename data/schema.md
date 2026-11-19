@@ -90,6 +90,7 @@ Rebuilt by `refresh_all()` after every pull and every named action. Never edited
 - **`budget_status(today)`** (a function): each budget line in the period that contains today, with spent, left, what other lines borrowed from it, and what's left after that. Default today is Eastern.
 - **`budget_spending(from, to)`** (a function): each spending transaction between two dates and the budget line it counts against. Leaves out transfers, card and loan payments, money in, and anything that is or may be a bill payment.
 - **`paycheck_plan(today, days)`** (a function): each pay date from the current one through the next 45 days, with what it funds (per-paycheck transfers, bills and budget lines) and what's left of the check.
+- **`payday_plan(today)`** (a function): one plan for the paycheck on today or the next pay date, through the day before the following income: incomes and transfers that day, every unpaid bill from a checking or savings account due through the stretch (late and past-due first) with the paying account's running balance if all are paid on payday, the paycheck budget set-asides, and what's left per account. The briefing shows it as the `payday_plan` item from two days before a pay date.
 - **`debt_payoff_plan(today, extra)`** (a function): each debt in plan order, with its payoff month and interest when minimums plus the extra debt line roll from one debt to the next.
 - **`refresh_runs`**: every refresh, and whether it worked. A failed one keeps the previous numbers.
 

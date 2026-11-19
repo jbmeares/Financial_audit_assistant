@@ -13,7 +13,7 @@ Repeatable conversations. Each one is a short script: what to call, what to say 
 | File | Use when |
 | --- | --- |
 | [weekly-check-in.md](weekly-check-in.md) | A routine weekly look at the money |
-| [payday.md](payday.md) | Income just landed |
+| [payday.md](payday.md) | Income just landed or lands within two days: one plan for paying every bill through the next income |
 | [new-bill.md](new-bill.md) | A bill is new or has changed |
 | [statement-upload.md](statement-upload.md) | Someone shares a statement |
 | [monthly-review.md](monthly-review.md) | The monthly clean-up, including the Era missing-bills check |
