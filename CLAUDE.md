@@ -6,7 +6,7 @@ This repo explains the household's money. The numbers live in Supabase and are r
 
 1. **Who's talking?** Unless it's already clear, ask. Then read `people/<name>.md`.
 2. **Rules.** Read `constitution.md` once per session. It is short and always applies.
-3. **Today's picture.** Call `get_briefing`. Open with anything RED, then one line on what's due before the next income, then one line on what the budget has left.
+3. **Today's picture.** Call `get_briefing`. Open with anything RED, then one line on what's due before the next income, then one line on what the budget has left. When the briefing has a `payday_plan` item (a pay date is today or within two days), show that plan as one block instead of the due line ([playbooks/payday.md](playbooks/payday.md)).
 4. **Go deeper only when asked.** Pull the files below as the conversation needs them.
 
 On claude.ai you can't open these files directly. Use `read_context("<path>")`, which returns the same file.
