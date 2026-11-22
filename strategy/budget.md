@@ -18,7 +18,9 @@ Food, Animals and Fuel keep those names, because the Level 3 Emergency Fund coun
 
 ## Which spending counts where
 
-`ref.current_budget_rules` maps Era categories, merchants and accounts to lines. The most specific rule wins. Anything from Bill Pay counts against nothing. Sam's Club, Costco and Walmart count as Food.
+`ref.current_budget_rules` maps Era categories, merchants and accounts to lines. The most specific rule wins. Sam's Club, Costco and Walmart count as Food.
+
+A purchase from Bill Pay counts the same as from Joint (James, 2026-11-22). Errands sometimes get paid from Bill Pay when the Joint card isn't at hand: "It happens." Lowes Foods counts as Food and Chewy as Animals (Chewy stays on Bill Pay). Bill payments don't count, because a matched or proposed bill payment never counts against a line. From Bill Pay, the catch-all categories (utilities, misc, subscriptions) count against nothing, since there they're bills that haven't matched yet. Water comes as two charges, the bill plus a card fee. Both count with the bill, never as spending.
 
 Fun money is what's spent from a Personal account on things just for that person. Groceries, eating out (coffee included) and gas bought from a Personal account count as Food and Fuel instead, because sometimes the right card isn't at hand. Assume there was a reason and don't ask (James, 2026-11-16). That covers Era's Food, Eating out and Fuel categories (and their older names), plus Sam's Club, Costco and Walmart. Era's "Personal account purchases are Fun money" rule skips the same purchases, so they keep their own category there too. Katelyn's checks from her Personal account stay fun money (decided 2026-11-15). A catch-all sends other categories to Shopping, so nothing goes unseen.
 
