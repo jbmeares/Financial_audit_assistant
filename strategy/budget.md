@@ -24,7 +24,7 @@ Spending counts by the transaction, not the account it came from (James, 2026-11
 
 Fun money is what's spent from a Personal account on things just for that person. Groceries, eating out (coffee included) and gas bought from a Personal account count as Food and Fuel instead, because sometimes the right card isn't at hand. Assume there was a reason and don't ask (James, 2026-11-16). That covers Era's Food, Eating out and Fuel categories (and their older names), plus Sam's Club, Costco and Walmart. Era's "Personal account purchases are Fun money" rule skips the same purchases, so they keep their own category there too. Katelyn's checks from her Personal account stay fun money (decided 2026-11-15). A catch-all sends other categories to Shopping, so nothing goes unseen.
 
-**Open:** Sam's Club also sells the household's gas, and the bank data can't tell gas from groceries there. Plan: all Sam's gas goes on James's Chase Freedom (James, 2026-11-14), and a rule sends Sam's charges on that card to Fuel. Not switched yet: the card doesn't have enough credit available (James, 2026-11-22). Until then Sam's gas still counts as Food.
+**Open:** Sam's Club also sells the household's gas, and the bank data can't tell gas from groceries there. Plan: all Sam's gas goes on James's Chase Freedom (James, 2026-11-14), and a rule sends Sam's charges on that card to Fuel. Not switched yet: the card doesn't have enough credit available (James, 2026-11-22).
 
 ## When to revisit
 
