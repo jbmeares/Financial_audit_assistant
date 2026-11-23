@@ -3,7 +3,7 @@
 *Action.* Changes a bill by closing its current version and adding a new one, so history is kept. Also adds a new bill or ends one.
 
 **Takes** `person`, `bill_key`, and:
-- `changes`: any of `name`, `amount`, `amount_kind` (`fixed` or `variable`), `tolerance`, `due_day`, `account_key`, `autopay`, `cadence` (`monthly`, `quarterly`, `semiannual`, `annual`), `cadence_anchor`, `note`, `pays_account_key` (for a card bill, the card account it pays down);
+- `changes`: any of `name`, `amount`, `amount_kind` (`fixed` or `variable`), `tolerance`, `due_day`, `account_key`, `autopay`, `cadence` (`monthly`, `quarterly`, `semiannual`, `annual`), `cadence_anchor`, `note`, `pays_account_key` (for a card bill, the card account it pays down), `category`, `basic_necessity`, `card_fee` (true when the bill always posts with a separate small card fee, so the fee is recorded with it);
 - optionally `effective_from` (default today) and `end: true` to end the bill.
 
 A new bill needs every required field: name, amount, amount_kind, due_day, account_key, autopay and cadence.
