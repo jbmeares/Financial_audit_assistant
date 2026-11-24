@@ -21,7 +21,7 @@ On claude.ai you can't open these files directly. Use `read_context("<path>")`, 
 | Which budget line a purchase counts on, a guess to check, or someone saying what a charge was | The `sort_questions` item in `get_briefing` (ask at the weekly check-in or payday only), then `sort_spending` ([tools/sort_spending.md](tools/sort_spending.md)) |
 | A transaction that might be a bill | Pending matches in the briefing, then `confirm_match` or `reject_match` |
 | A balance someone just told you | `record_balance` |
-| A bill that changed or is new | `update_bill`, plus `playbooks/new-bill.md` |
+| A bill that changed or is new | `update_bill`, plus `playbooks/new-bill.md`. Different for one month only (a hold, one amount, no bill): `note_bill_cycle` |
 | Someone corrects you, states a decision plainly, shares a new fact, is confused, or gives feedback | `log_note` right away, then say "Noted." ([tools/log_note.md](tools/log_note.md)). A what-if or a leaning isn't a decision (constitution rule 10) |
 | A hard time, a loss, a windfall | `life/`, and constitution Part 2 before typing |
 | Debt plan, goals, what "on track" means | `strategy/` |

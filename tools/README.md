@@ -26,6 +26,7 @@ The connector is "Household finance" on claude.ai, and `.mcp.json` in Claude Cod
 | [record_balance](record_balance.md) | action | Someone stated a balance |
 | [log_life_event](log_life_event.md) | action | Something happened, with a date |
 | [update_bill](update_bill.md) | action | A bill changed, is new or ended |
+| [note_bill_cycle](note_bill_cycle.md) | action | One month of a bill is different (a hold, an amount, no bill) |
 | [void_entry](void_entry.md) | action | Undo a wrong ledger entry |
 | [log_question](log_question.md) | action | Park a question or new context |
 | [answer_question](answer_question.md) | action | Close an open question |

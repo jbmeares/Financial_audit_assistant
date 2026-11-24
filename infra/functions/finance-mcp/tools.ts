@@ -332,7 +332,7 @@ export const TOOLS: Tool[] = [
     name: "update_bill",
     title: "Change, add or end a bill",
     description:
-      'Changes a bill by closing its current version and adding a new one from effective_from, so history is kept. Also adds a new bill (pass every required field) or ends one (end: true). changes can hold: name, amount, amount_kind ("fixed" or "variable"), tolerance (dollars), due_day (1-31), account_key (the account it\'s paid from), autopay (true/false), cadence ("monthly", "every_other_month", "quarterly", "semiannual", "annual", "weekly", "biweekly", "every_n_weeks", "per_paycheck"), cadence_anchor (one known due date, needed unless monthly or per_paycheck), every_weeks (for every_n_weeks), income_key (for per_paycheck), note, pays_account_key (the card or loan a card bill pays down), category (a lowercase word or two, see data/schema.md), basic_necessity (true/false: counts toward the Emergency Fund ladder), card_fee (true/false: the bill always posts with a separate small card fee, recorded with it). Only James changes bills (rule 20). A new bill needs name, amount, amount_kind, due_day, account_key, autopay and cadence: ask for any nobody stated, never guess (rule 6). Follow playbooks/new-bill.md.',
+      'Changes a bill by closing its current version and adding a new one from effective_from, so history is kept. For a change to one month only (a hold, one month\'s amount, no bill this month), use note_bill_cycle instead. Also adds a new bill (pass every required field) or ends one (end: true). changes can hold: name, amount, amount_kind ("fixed" or "variable"), tolerance (dollars), due_day (1-31), account_key (the account it\'s paid from), autopay (true/false), cadence ("monthly", "every_other_month", "quarterly", "semiannual", "annual", "weekly", "biweekly", "every_n_weeks", "per_paycheck"), cadence_anchor (one known due date, needed unless monthly or per_paycheck), every_weeks (for every_n_weeks), income_key (for per_paycheck), note, pays_account_key (the card or loan a card bill pays down), category (a lowercase word or two, see data/schema.md), basic_necessity (true/false: counts toward the Emergency Fund ladder), card_fee (true/false: the bill always posts with a separate small card fee, recorded with it). Only James changes bills (rule 20). A new bill needs name, amount, amount_kind, due_day, account_key, autopay and cadence: ask for any nobody stated, never guess (rule 6). Follow playbooks/new-bill.md.',
     inputSchema: {
       type: "object",
       properties: {
@@ -355,6 +355,36 @@ export const TOOLS: Tool[] = [
         str(args, "person"), str(args, "bill_key"), json(changes), date(args, "effective_from", false), args.end ?? false,
       ]);
       return { result: row };
+    },
+  },
+  {
+    name: "note_bill_cycle",
+    title: "Change one month of a bill",
+    description:
+      'Notes a change to one cycle of a bill without changing the bill: "holding it until the 20th" (move_to, within the same month for a monthly bill, at most 14 days for a weekly one), "this month it\'s $95" (amount), or "no bill this month" (skip). The projection, payday plan and matcher use it; the next cycle is back to normal on its own. Name the cycle by its normal due date (due_on in calc.bill_cycles). A note with none of move_to, amount or skip puts the cycle back to normal. For a lasting change (new amount every month, new due day), use update_bill instead. A paid cycle can\'t be noted. Rule 20: Katelyn adds context but doesn\'t change bills.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        person: PERSON,
+        bill_key: { type: "string" },
+        due_on: { type: "string", description: "The cycle's normal due date, YYYY-MM-DD." },
+        note: { type: "string", description: "Why, in their words." },
+        move_to: { type: "string", description: "Optional: the new date for this cycle, YYYY-MM-DD." },
+        amount: { type: "number", description: "Optional: this cycle's amount." },
+        skip: { type: "boolean", description: "Optional: true when there's no bill this cycle." },
+      },
+      required: ["person", "bill_key", "due_on", "note"],
+      additionalProperties: false,
+    },
+    annotations: WRITE,
+    handler: async (args, { db }) => {
+      only(args, ["person", "bill_key", "due_on", "note", "move_to", "amount", "skip"]);
+      if (args.skip !== undefined && typeof args.skip !== "boolean") throw new ToolError("skip must be true or false.");
+      const row = await action(db, "note_bill_cycle", [
+        str(args, "person"), str(args, "bill_key"), date(args, "due_on"), str(args, "note"),
+        date(args, "move_to", false), num(args, "amount", false), args.skip === true,
+      ]);
+      return { result: row, lead: "Noted on that one cycle; the bill itself is unchanged." };
     },
   },
   {

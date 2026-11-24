@@ -40,12 +40,13 @@ Every row has `valid_from` and `valid_to`. A change closes the old row and adds 
     - `every_n_weeks`: one known due date and how many weeks apart (`every_weeks`, for example 6).
     - `per_paycheck`: the income source (`income_key`) whose pay dates it falls on.
 
-  Every other field except tolerance, note, `pays_account_key`, `card_fee` (false unless set), `category` and `basic_necessity` is required. A field nobody knows becomes an open question, never a guess (rule 6).
+  Every other field except tolerance, note, `pays_account_key`, `category` and `basic_necessity` is required. A field nobody knows becomes an open question, never a guess (rule 6).
 
   Two tags, set by James (null until tagged):
     - `category`: housing, utilities, debt, insurance, kids, health, food, car, subscriptions or household (the list in use; a new one is a lowercase word or two).
     - `basic_necessity`: true when the bill counts toward a month of basic necessities for the Emergency Fund ladder ([strategy/on-track.md](../strategy/on-track.md)).
 - **`bill_aliases`**: names a bill shows up as in transactions.
+- **`bill_cycle_notes`**: a change to one cycle of a bill (a new date in the same month, one cycle's amount, or no bill this cycle), by the cycle's normal `due_on`, with who said it and why. Never changed; the latest for a cycle wins ([note_bill_cycle](../tools/note_bill_cycle.md)). `bills.card_fee` is retired: every bill takes smaller same-merchant charges with it.
 - **`debts`**: the account, APR (percent), minimum payment, promo end date and payoff priority (1 goes first). `in_payoff_plan` is false for a debt the written plan keeps outside the avalanche. `payment_bill_key` names the bill that pays the debt on a schedule when it pays more than the minimum (the truck's per-paycheck payment), so the payoff plan counts it.
 - **`debt_buckets`**: the parts of a debt's balance that have their own terms, copied from a statement. One row per part: `kind` (`deferred_interest`: no interest if paid in full by `ends_on`, else back interest at `apr`; `zero_apr`: 0% until `ends_on`, then `apr`; `reduced_apr`: charged `apr` until paid off, no end date), `amount`, `apr`, `ends_on`, `deferred_interest` (back interest built up so far on a deferred-interest promo) and `as_of` (the statement date). The rest of the balance is at the debt's APR. A debt with parts ignores `debts.promo_end_on`.
 - **`debt_promos`**: retired 2026-11-15, replaced by `debt_buckets`. Kept for history; nothing reads it.
@@ -69,7 +70,7 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 
 ## knowledge
 
-- **`proposed_matches`**: a transaction paired with a bill and a month, with a score and a reason. For a card bill the transaction can be the payment received on the card, so it matches whichever account sent it; only one side of a transfer is proposed. For a bill with `card_fee`, the bill's proposal names the fee, and a fee that shows up after its bill is confirmed gets its own proposal for the same month. Status is pending, ambiguous (two bills tied), confirmed or rejected. A pairing can be proposed only once, so the matcher never brings a rejected one back; only `reopen_match` (a person saying the rejection was a mistake) does.
+- **`proposed_matches`**: a transaction paired with a bill and a month, with a score and a reason. For a card bill the transaction can be the payment received on the card, so it matches whichever account sent it; only one side of a transfer is proposed. Smaller charges from the same merchant, on the same account, within 2 days (a card fee, a split payment) go with the bigger one: its proposal names them, and one that shows up after the bill is confirmed gets its own proposal for the same month. Status is pending, ambiguous (two bills tied), confirmed or rejected. A pairing can be proposed only once, so the matcher never brings a rejected one back; only `reopen_match` (a person saying the rejection was a mistake) does.
 - **`open_questions`**: a question for a person, or `new_context` parked from claude.ai to be filed in the repo later (rule 22).
 - **`chat_notes`**: a note a chat saved as it happened, with who said it, the kind (correction, decision, fact, feedback, confusion), what was said, what the chat had answered, and whether it's `new` or `reviewed`. Only the review fields can change ([log_note](../tools/log_note.md)).
 - **`sort_answers`**: every sorting answer, never changed: `one_charge` (a person's word on one charge; the latest wins; no person means it was kept as the old rules sorted it at the 2026-11-24 switch), `merchant` (what a merchant is, also written to `ref.merchant_memory`), `guess` (Claude's guess) or `skip` (not asked again).
@@ -82,7 +83,7 @@ Append-only. A trigger refuses every update, delete and truncate, even from the 
 
 Rebuilt by `refresh_all()` after every pull and every named action. Never edited. How each number is made, and the defaults used, are in [calculations.md](calculations.md).
 
-- **`bill_cycles`**: each bill on each due date, with its due month, cadence, expected amount and status (paid, pending match, not seen yet or late). Month-based bills have one a month; week-based and per-paycheck bills can have several.
+- **`bill_cycles`**: each bill on each due date, with its due month, cadence, expected amount and status (paid, pending match, not seen yet or late). `due_on` and `expected_amount` include any one-cycle note, shown in `cycle_note`; a skipped cycle isn't listed. Month-based bills have one a month; week-based and per-paycheck bills can have several.
 - **`account_balances`**: the balance each account's numbers start from, whether it came from Era or a person, and whether it's older than 3 days.
 - **`cash_projection`**: each checking and savings account for 60 days: opening, money in, money out, closing, below zero, and what moved that day.
 - **`debt_snapshot`**: each debt's balance, APR, minimum, estimated monthly interest, promo end and payoff priority, and its balance split into parts (`ref.debt_buckets`): `promo_balance`, `reduced_apr_balance`, `full_apr_balance`, `deferred_interest_at_risk`, each part in `parts`, and the split in one sentence in `parts_text`.
