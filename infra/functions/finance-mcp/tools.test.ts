@@ -70,7 +70,7 @@ Deno.test("tools/list has every tool in the build spec", () => {
   for (
     const n of [
       "get_briefing", "read_context", "query", "what_if", "confirm_match", "reject_match", "reopen_match", "record_balance",
-      "log_life_event", "update_bill", "void_entry", "log_question", "answer_question", "log_note", "sort_spending", "create_era_rule",
+      "log_life_event", "update_bill", "void_entry", "log_question", "answer_question", "log_note", "sort_spending", "note_bill_cycle", "create_era_rule",
     ]
   ) assert(names.includes(n), `missing ${n}`);
   for (const t of TOOLS) assert(t.description.length > 40 && t.inputSchema.type === "object", t.name);
@@ -185,6 +185,15 @@ Deno.test("sort_spending remembers a merchant, one charge or a skip", async () =
   await refuses("sort_spending", { person: "james", kind: "merchant", merchant: "TEST STREAMING", line: "groceries" }, /no budget line "groceries"/);
   await refuses("sort_spending", { person: "james", kind: "one_charge", era_transaction_id: "nope", line: "none" }, /no transaction/);
   await refuses("sort_spending", { person: "james", kind: "merchant", merchant: "x y z", line: "none", mood: "ok" }, /doesn't take: mood/);
+});
+
+Deno.test("note_bill_cycle changes one cycle and refuses a bad date", async () => {
+  const due = await owner`select due_on::text from calc.bill_cycles where bill_key = 'test-phone' and due_on > current_date + 7 order by due_on limit 1`;
+  const r = await call("note_bill_cycle", { person: "james", bill_key: "test-phone", due_on: due[0].due_on, note: "credit this month", amount: 0 });
+  assertEquals(Number((r.result as { amount: unknown }).amount), 0);
+  assertMatch(r.lead ?? "", /one cycle/);
+  await refuses("note_bill_cycle", { person: "james", bill_key: "test-phone", due_on: "next week", note: "x" }, /date like/);
+  await refuses("note_bill_cycle", { person: "james", bill_key: "test-phone", due_on: due[0].due_on, note: "x", skip: "yes" }, /true or false/);
 });
 
 Deno.test("read_context reads Markdown, lists folders and refuses infra/", async () => {

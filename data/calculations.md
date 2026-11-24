@@ -39,8 +39,8 @@ The matcher looks at money-out transactions from the last 45 days that aren't pa
 | Points | When |
 | --- | --- |
 | 30 | It came from the bill's account |
-| 40 | The amount is within tolerance: the bill's own, else $0.01 for fixed and 15% for variable |
-| 20 | It falls in the cycle's window: 7 days before to 7 days after the due month; for week-based and per-paycheck bills, the cycle's share of the days around its due date (weekly: 3 days either side; biweekly and per paycheck: 6 before to 7 after; every 6 weeks: 20 before to 21 after) |
+| 40 | The amount, alone or with the smaller same-merchant charges that came with it, is within tolerance: the bill's own if someone set one, else $0.01 for fixed and 15% for variable, widened to how far its confirmed payments in the last year strayed from the amount (at most half the amount) |
+| 20 | It falls in the cycle's window: 7 days before to 7 days after the due month (a monthly bill paid more than a week late in the last year gets that much more room at the end, up to 14 days); for week-based and per-paycheck bills, the cycle's share of the days around its due date (weekly: 3 days either side; biweekly and per paycheck: 6 before to 7 after; every 6 weeks: 20 before to 21 after) |
 | 10 | The merchant or Era's description contains an alias, or Era tagged it `bill:<key or name>` |
 
 - **Never a bill payment.** A transfer to another of the household's checking or savings accounts, a fee (the word "fee" in the description) and an interest charge are skipped. A card payment is a transfer to a card, so it is still matched.
@@ -55,6 +55,7 @@ The matcher looks at money-out transactions from the last 45 days that aren't pa
   - A pairing a person rejected is never proposed again.
   - Nothing is confirmed automatically.
 - **After a "no".** Once a proposal is rejected, the next-best bill can be proposed the following night.
+- **Charges that go together.** A smaller charge from the same merchant, on the same account, within 2 days of a bigger one at a merchant that names a bill (a card fee, a bill paid in two parts) is never proposed on its own. The bigger charge's proposal names it, confirming records it for the same cycle, and one that shows up after the bill is confirmed is proposed for that cycle. Equal charges are separate payments.
 - **Charges Era drops.** Each run first withdraws any open proposal whose transaction Era no longer sends (`removed_at` set), such as a pending charge that posted under a new id or a copy on a replaced account. The posted copy is then proposed on its own. Removed transactions are never proposed.
 - **Charges still pending at the bank.** A pending charge is proposed like any other, so the bill shows as matched and isn't projected a second time. It can't be confirmed until it posts, because a pending charge can vanish and post under a new id. The briefing's pending matches item marks these with `still_pending` and counts them apart from the ones ready for a yes or no.
 - **Withdrawn proposals.** A proposal set to `rejected` with no person in `decided_by` was withdrawn by a build, not refused by a person. The matcher may propose that pairing again under the current rules. The proposals from the first real run were withdrawn this way on 2026-11-10, because the old rules made them.
