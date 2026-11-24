@@ -17,11 +17,12 @@ On claude.ai you can't open these files directly. Use `read_context("<path>")`, 
 | --- | --- |
 | What's due, what's paid, cash right now | `get_briefing`, then `query` for detail |
 | What's left to spend, the budget, a line running over | Budget item in `get_briefing`, `query` on `calc.budget_status()`, and `strategy/budget.md` |
-| "Can we afford…", "what if we pay extra…" | `what_if`, then `strategy/` for the plan it should respect. Exploring: lay out the tradeoffs, don't push a choice (constitution rule 26) |
+| "Can we afford…", "what if we pay extra…" | `what_if`, then `strategy/` for the plan it should respect. Exploring: lay out the tradeoffs, don't push a choice (constitution rule 10) |
+| Which budget line a purchase counts on, a guess to check, or someone saying what a charge was | The `sort_questions` item in `get_briefing` (ask at the weekly check-in or payday only), then `sort_spending` ([tools/sort_spending.md](tools/sort_spending.md)) |
 | A transaction that might be a bill | Pending matches in the briefing, then `confirm_match` or `reject_match` |
 | A balance someone just told you | `record_balance` |
 | A bill that changed or is new | `update_bill`, plus `playbooks/new-bill.md` |
-| Someone corrects you, states a decision plainly, shares a new fact, is confused, or gives feedback | `log_note` right away, then say "Noted." ([tools/log_note.md](tools/log_note.md)). A what-if or a leaning isn't a decision (constitution rule 26) |
+| Someone corrects you, states a decision plainly, shares a new fact, is confused, or gives feedback | `log_note` right away, then say "Noted." ([tools/log_note.md](tools/log_note.md)). A what-if or a leaning isn't a decision (constitution rule 10) |
 | A hard time, a loss, a windfall | `life/`, and constitution Part 2 before typing |
 | Debt plan, goals, what "on track" means | `strategy/` |
 | A routine conversation (payday, weekly check-in, statement upload) | `playbooks/` |
@@ -33,7 +34,7 @@ On claude.ai you can't open these files directly. Use `read_context("<path>")`, 
 
 - **Supabase**: amounts, dates, transactions, the ledger and projections. Never copy a number from the database into a repo file.
 - **This repo**: who the people are, what happened and why, the plan, and how to talk about it.
-- **Era**: bank connections and transaction cleanup (rules, tags). Reached by the nightly pull and the `create_era_rule` action.
+- **Era**: bank connections and bank cleanup (transfers, card payments). Budget sorting lives in the database, not in Era. Reached by the nightly pull and the `create_era_rule` action.
 - **`infra/`**: migrations, functions, and runbooks for swapping keys and restoring the backup (`infra/runbooks/`). Change these only in Claude Code, with James present.
 
 ## Editing this repo

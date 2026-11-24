@@ -130,7 +130,7 @@ export const TOOLS: Tool[] = [
     name: "query",
     title: "Look something up in the database",
     description:
-      "Runs one read-only SELECT (or WITH ... SELECT) as assistant_read and returns the rows as JSON. Use it for detail the briefing doesn't show: transactions, balances, bills, matches, life events, open questions. Schemas: raw (what Era sent: era_transactions with amount negative = money out, occurred_on, merchant, pending; era_accounts; era_balances), ref (current_accounts, current_bills, current_bill_aliases, current_debts, current_income_sources, current_api_keys), ledger (payments_effective, balance_statements_effective), knowledge (proposed_matches, open_questions, life_events), calc (bill_cycles, cash_projection, account_balances, debt_snapshot, briefing). Always schema-qualify names. Limits: 5 seconds, at most 500 rows (truncated: true means there were more). read_context(\"data/schema.md\") explains every table. Do sums of more than two numbers here, not in prose (rule 2).",
+      "Runs one read-only SELECT (or WITH ... SELECT) as assistant_read and returns the rows as JSON. Use it for detail the briefing doesn't show: transactions, balances, bills, matches, life events, open questions. Schemas: raw (what Era sent: era_transactions with amount negative = money out, occurred_on, merchant, pending; era_accounts; era_balances), ref (current_accounts, current_bills, current_budget_lines, current_merchant_memory, current_category_map, current_bill_aliases, current_debts, current_income_sources, current_api_keys), ledger (payments_effective, balance_statements_effective), knowledge (proposed_matches, open_questions, life_events, sort_answers), calc (spending_sorted(from, to) and sort_questions() for budget sorting, bill_cycles, cash_projection, account_balances, debt_snapshot, briefing). Always schema-qualify names. Limits: 5 seconds, at most 500 rows (truncated: true means there were more). read_context(\"data/schema.md\") explains every table. Do sums of more than two numbers here, not in prose (rule 2).",
     inputSchema: {
       type: "object",
       properties: {
@@ -162,7 +162,7 @@ export const TOOLS: Tool[] = [
     name: "what_if",
     title: "What happens if…",
     description:
-      'Answers "can we afford…" and "what if we pay extra…" by re-running the 60-day projection with changes, and returns the difference from the normal projection: each account\'s lowest balance and its date, below-zero days, and debt payoff dates that move. Writes nothing. Pass one change or a list. Change types: {"type": "extra_payment", "debt_key", "amount", "on": "YYYY-MM-DD", "account_key", "monthly": true|false}, {"type": "skip_bill", "bill_key", "due_month": "YYYY-MM-01"}, {"type": "one_off_expense", "account_key", "amount", "on", "label"}, {"type": "income_change", "income_key", "amount", "from"}. Keys come from ref.current_* (use query). Never do this math in prose (rule 2). A what-if is usually exploring: lay out what each path does and gives up, evenly, without pushing a choice or offering to save one (rule 26).',
+      'Answers "can we afford…" and "what if we pay extra…" by re-running the 60-day projection with changes, and returns the difference from the normal projection: each account\'s lowest balance and its date, below-zero days, and debt payoff dates that move. Writes nothing. Pass one change or a list. Change types: {"type": "extra_payment", "debt_key", "amount", "on": "YYYY-MM-DD", "account_key", "monthly": true|false}, {"type": "skip_bill", "bill_key", "due_month": "YYYY-MM-01"}, {"type": "one_off_expense", "account_key", "amount", "on", "label"}, {"type": "income_change", "income_key", "amount", "from"}. Keys come from ref.current_* (use query). Never do this math in prose (rule 2). A what-if is usually exploring: lay out what each path does and gives up, evenly, without pushing a choice or offering to save one (rule 10).',
     inputSchema: {
       type: "object",
       properties: {
@@ -407,7 +407,7 @@ export const TOOLS: Tool[] = [
     name: "log_note",
     title: "Save a note for review",
     description:
-      'Saves a note the moment something worth keeping happens, so James and the build sessions can learn from the chat without anyone relaying it. There is no end-of-chat step: note it as it happens. Save one when the person (1) corrects something you said ("correction"), (2) states a decision plainly, like "let\'s do it" ("decision"; a what-if, a leaning or a "maybe" is not one, and never ask them to decide so there is something to note, rule 26), (3) tells you something new about the accounts, bills, income or plans, like a card swap or a bill change ("fact"), (4) says something you said was confusing or unclear ("confusion"), or (5) says how the chat is going, good or bad, like "that worked well" ("feedback"). Then say "Noted." in your reply, every time: never save a note they don\'t see. Put what they said in said, in their words or close, and what you had just told them in chat_answer when the note is about it. Don\'t note what another tool already saved: something that happened on a date goes to log_life_event, a question nobody can answer now goes to log_question, and a story or new topic for a repo file goes to log_question as new_context. A correction is always noted, even when record_balance or another tool also saved the fix, because it shows where the chat went wrong. Katelyn can save notes (rule 20).',
+      'Saves a note the moment something worth keeping happens, so James and the build sessions can learn from the chat without anyone relaying it. There is no end-of-chat step: note it as it happens. Save one when the person (1) corrects something you said ("correction"), (2) states a decision plainly, like "let\'s do it" ("decision"; a what-if, a leaning or a "maybe" is not one, and never ask them to decide so there is something to note, rule 10), (3) tells you something new about the accounts, bills, income or plans, like a card swap or a bill change ("fact"), (4) says something you said was confusing or unclear ("confusion"), or (5) says how the chat is going, good or bad, like "that worked well" ("feedback"). Then say "Noted." in your reply, every time: never save a note they don\'t see. Put what they said in said, in their words or close, and what you had just told them in chat_answer when the note is about it. Don\'t note what another tool already saved: something that happened on a date goes to log_life_event, a question nobody can answer now goes to log_question, and a story or new topic for a repo file goes to log_question as new_context. A correction is always noted, even when record_balance or another tool also saved the fix, because it shows where the chat went wrong. Katelyn can save notes (rule 20).',
     inputSchema: {
       type: "object",
       properties: {
@@ -427,6 +427,39 @@ export const TOOLS: Tool[] = [
         str(args, "person"), str(args, "kind"), str(args, "said"), str(args, "chat_answer", false), str(args, "topic", false),
       ]);
       return { result: row, lead: 'Saved for review. Say "Noted." in your reply so they see it was saved.' };
+    },
+  },
+  {
+    name: "sort_spending",
+    title: "Say what a purchase is, for the budget",
+    description:
+      'Records what a purchase or a merchant is for the budget, so it is remembered and never asked again (rule 25). A charge gets its budget line from the first of: a person\'s word on that charge, merchant memory, Era\'s category, Claude\'s guess. The last two are guesses: calc.spending_sorted labels them, the briefing\'s budget item says how much of each line is guessed, and its sort_questions item (calc.sort_questions) lists each guessed merchant once. Ask about those at the weekly check-in or on payday only, never as a warning, then record the answer here. kind: "merchant" (what this merchant always is: line is a line_key, "none" for not budget spending such as a bill, or "varies" when it sells many kinds of things so Era\'s category decides), "one_charge" (just this charge, by era_transaction_id; always stands, e.g. "that Sam\'s charge was gas"), "skip" (they don\'t know; it stays a guess and isn\'t asked again), or "guess" (your own guess for a merchant Era\'s category can\'t place; still asked about, never replaces what someone said). line_key values are in ref.current_budget_lines. From a Personal account, a purchase on Shopping or with no line counts as that person\'s fun money unless they said otherwise on that charge. Never guess on a write (rule 5): if the answer is unclear, ask one short question. No need to log_note an answer saved here.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        person: PERSON,
+        kind: { type: "string", enum: ["merchant", "one_charge", "skip", "guess"] },
+        line: { type: "string", description: 'A line_key from ref.current_budget_lines, "none" (not budget spending), or for kind merchant "varies" (follow Era\'s category). Not for skip.' },
+        merchant: { type: "string", description: "kind merchant, skip or guess: the merchant as calc.sort_questions names it (merchant_key)." },
+        era_transaction_id: { type: "string", description: "kind one_charge only: the charge, from calc.sort_questions transactions or a query." },
+        note: { type: "string", description: "Optional: why, in their words." },
+      },
+      required: ["person", "kind"],
+      additionalProperties: false,
+    },
+    annotations: WRITE,
+    handler: async (args, { db }) => {
+      only(args, ["person", "kind", "line", "merchant", "era_transaction_id", "note"]);
+      const row = await action(db, "sort_spending", [
+        str(args, "person"), str(args, "kind"), str(args, "line", false), str(args, "merchant", false),
+        str(args, "era_transaction_id", false), str(args, "note", false),
+      ]);
+      const lead = row.kind === "skip"
+        ? "Saved: it stays a guess and won't be asked about again."
+        : row.kind === "guess"
+        ? "Saved as a guess: it's still labeled guessed and will be asked about."
+        : "Saved and remembered: the budget already counts it this way.";
+      return { result: row, lead };
     },
   },
   {

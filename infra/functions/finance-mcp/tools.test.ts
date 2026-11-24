@@ -70,7 +70,7 @@ Deno.test("tools/list has every tool in the build spec", () => {
   for (
     const n of [
       "get_briefing", "read_context", "query", "what_if", "confirm_match", "reject_match", "reopen_match", "record_balance",
-      "log_life_event", "update_bill", "void_entry", "log_question", "answer_question", "log_note", "create_era_rule",
+      "log_life_event", "update_bill", "void_entry", "log_question", "answer_question", "log_note", "sort_spending", "create_era_rule",
     ]
   ) assert(names.includes(n), `missing ${n}`);
   for (const t of TOOLS) assert(t.description.length > 40 && t.inputSchema.type === "object", t.name);
@@ -162,6 +162,29 @@ Deno.test("log_note saves a note once and tells the chat to say so", async () =>
   await refuses("log_note", { person: "james", kind: "gossip", said: "x" }, /kind must be/);
   await refuses("log_note", { person: "james", kind: "fact" }, /said is required/);
   await refuses("log_note", { person: "james", kind: "fact", said: "x", mood: "happy" }, /doesn't take: mood/);
+});
+
+Deno.test("sort_spending remembers a merchant, one charge or a skip", async () => {
+  await owner.unsafe(`
+    insert into ref.budget_lines (line_key, name, amount, period, valid_from)
+    values ('test-shopping', 'Test shopping', 100.00, 'month', '2026-01-01')
+    on conflict do nothing;
+  `);
+  const m = await call("sort_spending", { person: "james", kind: "merchant", merchant: "TEST STREAMING", line: "none", note: "a bill" });
+  assertEquals((m.result as { kind: string; merchant_key: string }).merchant_key, "test streaming");
+  assertMatch(m.lead ?? "", /remembered/);
+  const mem = await owner`select line_key, confirmed, set_by from ref.current_merchant_memory where pattern = 'test streaming'`;
+  assertEquals([mem[0].line_key, mem[0].confirmed, mem[0].set_by], [null, true, "james"]);
+
+  const c = await call("sort_spending", { person: "katelyn", kind: "one_charge", era_transaction_id: "test-tx-1", line: "test-shopping" });
+  assertEquals((c.result as { line_key: string }).line_key, "test-shopping");
+
+  const s = await call("sort_spending", { person: "james", kind: "skip", merchant: "Test Phone Co" });
+  assertMatch(s.lead ?? "", /won't be asked/);
+
+  await refuses("sort_spending", { person: "james", kind: "merchant", merchant: "TEST STREAMING", line: "groceries" }, /no budget line "groceries"/);
+  await refuses("sort_spending", { person: "james", kind: "one_charge", era_transaction_id: "nope", line: "none" }, /no transaction/);
+  await refuses("sort_spending", { person: "james", kind: "merchant", merchant: "x y z", line: "none", mood: "ok" }, /doesn't take: mood/);
 });
 
 Deno.test("read_context reads Markdown, lists folders and refuses infra/", async () => {

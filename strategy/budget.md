@@ -18,13 +18,15 @@ Food, Animals and Fuel keep those names, because the Level 3 Emergency Fund coun
 
 ## Which spending counts where
 
-`ref.current_budget_rules` maps Era categories, merchants and accounts to lines. The most specific rule wins. Sam's Club, Costco and Walmart count as Food.
+Sorting lives in the database, not in Era (James, 2026-11-24: option B, "learn and ask"). A purchase gets its line from the first of: someone's word on that charge, what the merchant is known to be, Era's category, or Claude's guess. The last two are guesses until someone confirms, and Claude asks about them once per merchant at the weekly check-in or on payday. Each answer is remembered, so a new situation never needs a new rule. How it works: [tools/sort_spending.md](../tools/sort_spending.md).
 
-Spending counts by the transaction, not the account it came from (James, 2026-11-22: "too focused on accounts and not enough on transactions"). Bill Pay is for recurring bills, but people forget cards, so a purchase from Bill Pay counts the same as from Joint. Lowes Foods counts as Food and Chewy as Animals (Chewy stays on Bill Pay). Bills drop out on their own: a matched or proposed bill payment never counts against a line, and bills that are always bills (water, preschool) have a merchant rule that counts them against nothing. Water comes as two charges, the bill plus a card fee. Both count with the bill.
+At the switch, merchant memory started from the old rules and every past merchant, and every past charge kept the line it had, so no number changed.
 
-Fun money is what's spent from a Personal account on things just for that person. Groceries, eating out (coffee included) and gas bought from a Personal account count as Food and Fuel instead, because sometimes the right card isn't at hand. Assume there was a reason and don't ask (James, 2026-11-16). That covers Era's Food, Eating out and Fuel categories (and their older names), plus Sam's Club, Costco and Walmart. Era's "Personal account purchases are Fun money" rule skips the same purchases, so they keep their own category there too. Katelyn's checks from her Personal account stay fun money (decided 2026-11-15). A catch-all sends other categories to Shopping, so nothing goes unseen.
+Spending counts by the transaction, not the account it came from (James, 2026-11-22: "too focused on accounts and not enough on transactions"). Bill Pay is for recurring bills, but people forget cards, so a purchase from Bill Pay counts the same as from Joint. Lowes Foods counts as Food and Chewy as Animals (Chewy stays on Bill Pay). Bills drop out on their own: a matched or proposed bill payment never counts against a line, and merchants that are always bills (water, preschool) are remembered as "not budget spending". Water comes as two charges, the bill plus a card fee. Both count with the bill.
 
-**Open:** Sam's Club also sells the household's gas, and the bank data can't tell gas from groceries there. Plan: all Sam's gas goes on James's Chase Freedom (James, 2026-11-14), and a rule sends Sam's charges on that card to Fuel. Not switched yet: the card doesn't have enough credit available (James, 2026-11-22).
+Fun money is what's spent from a Personal account on things just for that person. The account is a hint: from a Personal account, a purchase that would be Shopping, or has no line, counts as fun money. Groceries, eating out (coffee included), gas, pets, the doctor and pharmacy, home and kids' outings bought from a Personal account count on their own lines instead, because sometimes the right card isn't at hand. Assume there was a reason and don't ask (James, 2026-11-16). Sam's Club, Costco and Walmart count as Food. Katelyn's checks from her Personal account stay fun money (decided 2026-11-15).
+
+Sam's Club also sells the household's gas, and the bank data can't tell gas from groceries there. Sam's counts as Food; a Sam's charge that was gas gets a word on that one charge ("that Sam's charge was gas"), and it counts as Fuel. The plan to put all Sam's gas on James's Chase Freedom (James, 2026-11-14) is on hold: the card doesn't have enough credit available (James, 2026-11-22).
 
 ## When to revisit
 
@@ -36,6 +38,7 @@ Fun money is what's spent from a Personal account on things just for that person
 
 - What's left: `get_briefing` (budget item), or `query` on `calc.budget_status()`.
 - What each paycheck funds and what's left of it: `query` on `calc.paycheck_plan()`.
-- What counted against a line: `query` on `calc.budget_spending(from, to)`.
+- What counted against a line, and how it got there (`sorted_by`, `guessed`): `query` on `calc.spending_sorted(from, to)`.
+- Guesses waiting for an answer: `query` on `calc.sort_questions()`.
 - The whole plan on one page: the Budget Map (https://claude.ai/artifact/GAQ12uWHeCk57VsDjkRuGY). It reads the paycheck plan, bills, transfers, budget lines and cash projection live each time it opens, so it never needs rebuilding. For the account paychecks land in, it takes the budget lines out on each payday as if spent as planned.
-- Changing an amount or a rule is a Claude Code job for now. On claude.ai, log it as an open question.
+- Changing an amount is a Claude Code job for now. On claude.ai, log it as an open question. Saying what a purchase or merchant is needs no build: `sort_spending`.

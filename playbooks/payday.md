@@ -6,7 +6,7 @@ Income just landed, or lands in the next two days. On payday James sits down and
 
 1. `get_briefing`. From two days before a pay date through the pay date it has a `payday_plan` item. Any other day, `query` `select calc.payday_plan()` when someone asks for it.
 2. If the deposit amount or date differs from what's on file, note it and log an open question ([rule 6](../constitution.md)). Income sources are changed in Claude Code for v1.
-3. For "can we afford…" or "what if we pay extra…", run `what_if` ([rule 2](../constitution.md)) and lay out the tradeoffs ([rule 26](../constitution.md)). Check `strategy/` for the plan it should respect.
+3. For "can we afford…" or "what if we pay extra…", run `what_if` ([rule 2](../constitution.md)) and lay out the tradeoffs ([rule 10](../constitution.md)). Check `strategy/` for the plan it should respect.
 
 ## Say first
 
@@ -20,6 +20,8 @@ Anything RED, then the payday plan as one block, in this order. Every number com
 
 On a Lincoln payday, say once that Food, Fuel and fun money start fresh (budget item).
 
+After the plan, if the briefing has a `sort_questions` item, go through those guesses the same way as at the weekly check-in, one merchant at a time, and save each answer with `sort_spending` ([rule 25](../constitution.md)). Keep it after the plan, never mixed into it.
+
 While the plan is in the briefing, the "due before the next income" line is folded into it. Don't repeat those bills elsewhere in the reply.
 
 ## Avoid
@@ -27,7 +29,7 @@ While the plan is in the briefing, the "due before the next income" line is fold
 - Splitting the plan across "tomorrow", "rest of the stretch" and "housekeeping" sections.
 - Doing the math in prose ([rule 2](../constitution.md)).
 - Judging last period's spending. Forward only ([rule 9](../constitution.md)).
-- Pushing promo or extra-payment choices. Mention a promo deadline in one line if the briefing has it; run a what-if only if asked ([rule 26](../constitution.md)).
+- Pushing promo or extra-payment choices. Mention a promo deadline in one line if the briefing has it; run a what-if only if asked ([rule 10](../constitution.md)).
 
 ## End with
 
