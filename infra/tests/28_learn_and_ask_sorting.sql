@@ -159,6 +159,19 @@ select pg_temp.check((select e ->> 'level' = 'GREEN' and e ->> 'text' like '% to
                         from calc.briefing, jsonb_array_elements(items) e where e ->> 'kind' = 'sort_questions'),
   'the questions are one GREEN item, never a warning');
 
+-- Memory for one account beats the same merchant's memory elsewhere (Sam's Club on the gas card is Fuel).
+insert into ref.merchant_memory (pattern, line_key, source, account_key, note, valid_from)
+values ('big club', 'animals', 'seeded', 'card', 'gas on the card', '2026-01-01');
+select pg_temp.check((select line_key = 'animals' and sorted_by = 'memory' from calc.spending_sorted('2026-02-01', '2026-02-28') where era_transaction_id = 's-club-2')
+                     and (select line_key = 'food' from calc.spending_sorted('2026-02-01', '2026-02-28') where era_transaction_id = 's-p-club'),
+  'a merchant remembered for one account counts that way only on that account');
+select actions.sort_spending('james', 'merchant', 'food', 'big club', null, 'groceries');
+select pg_temp.check((select line_key = 'animals' from calc.spending_sorted('2026-02-01', '2026-02-28') where era_transaction_id = 's-club-2')
+                     and (select count(*) = 2 from ref.current_merchant_memory where pattern = 'big club'),
+  'an answer about the merchant leaves its account memory alone');
+select pg_temp.expect_error(null, $$insert into ref.merchant_memory (pattern, line_key, source, account_key) values ('nowhere', 'food', 'seeded', 'no-such-account')$$,
+  '%', 'an account memory needs a real account');
+
 -- Access.
 select pg_temp.check(pg_temp.as_role('assistant_read', 'select count(*) > 0 from calc.sort_questions(''2026-02-20'')') = 'true',
   'the assistant can read the questions');

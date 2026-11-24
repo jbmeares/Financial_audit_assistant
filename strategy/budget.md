@@ -26,7 +26,7 @@ Spending counts by the transaction, not the account it came from (James, 2026-11
 
 Fun money is what's spent from a Personal account on things just for that person. The account is a hint: from a Personal account, a purchase that would be Shopping, or has no line, counts as fun money. Groceries, eating out (coffee included), gas, pets, the doctor and pharmacy, home and kids' outings bought from a Personal account count on their own lines instead, because sometimes the right card isn't at hand. Assume there was a reason and don't ask (James, 2026-11-16). Sam's Club, Costco and Walmart count as Food. Katelyn's checks from her Personal account stay fun money (decided 2026-11-15).
 
-Sam's Club also sells the household's gas, and the bank data can't tell gas from groceries there. Sam's counts as Food; a Sam's charge that was gas gets a word on that one charge ("that Sam's charge was gas"), and it counts as Fuel. The plan to put all Sam's gas on James's Chase Freedom (James, 2026-11-14) is on hold: the card doesn't have enough credit available (James, 2026-11-22).
+Sam's Club also sells the household's gas, and the bank data can't tell gas from groceries there. Sam's counts as Food, except on James's Chase card 8115, where it counts as Fuel because that card is meant for the gas (James, 2026-11-24). A Sam's gas charge on any other card gets a word on that one charge ("that Sam's charge was gas"), and it counts as Fuel. The plan to put all Sam's gas on James's Chase Freedom (James, 2026-11-14) is on hold: the card doesn't have enough credit available (James, 2026-11-22).
 
 ## When to revisit
 
