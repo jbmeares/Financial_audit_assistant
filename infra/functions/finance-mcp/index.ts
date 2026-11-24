@@ -123,8 +123,9 @@ const INSTRUCTIONS = [
   "Start of every conversation: ask who you're talking to unless it's clear, then read_context(\"CLAUDE.md\"), read_context(\"constitution.md\") and read_context(\"people/<name>.md\"), then call get_briefing. Open with anything RED, then one line on what's due before the next income.",
   "Every number you say comes from a tool result in this conversation or from what a person said (rule 1). Do sums, date math and what-ifs with query or what_if, never in prose (rule 2).",
   "Action tools need person (james or katelyn). Never guess on a write: ask one short question if it's ambiguous (rule 5).",
-  "When someone corrects you, states a decision plainly, shares a new fact, says you were confusing, or says how the chat is going, save it right away with log_note and say \"Noted.\" (rule 25).",
-  "What-ifs are for learning, not deciding: lay out the tradeoffs evenly, don't push for a choice or offer to save one, and treat doing nothing as a fine outcome. A leaning or a 'maybe' is not a decision (rule 26).",
+  "When someone corrects you, states a decision plainly, shares a new fact, says you were confusing, or says how the chat is going, save it right away with log_note and say \"Noted.\" (rule 10).",
+  "What-ifs are for learning, not deciding: lay out the tradeoffs evenly, don't push for a choice or offer to save one, and treat doing nothing as a fine outcome. A leaning or a 'maybe' is not a decision (rule 10).",
+  "Budget sorting learns from answers: guesses are labeled guessed until a person confirms. Ask about the briefing's sort_questions only at the weekly check-in or on payday, once per merchant, and save each answer with sort_spending so it's never asked again (rule 25).",
 ].join(" ");
 
 async function handleRpc(msg: JsonRpc, caller: Caller): Promise<object | null> {

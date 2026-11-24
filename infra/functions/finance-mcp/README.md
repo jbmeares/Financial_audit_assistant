@@ -7,7 +7,7 @@ The finance MCP server (build spec, Block F): the only way Claude reaches the nu
 | File | What it holds |
 | --- | --- |
 | `index.ts` | HTTP, sign-in checks, JSON-RPC, the call log |
-| `tools.ts` | The 16 tools: their schemas, descriptions and handlers |
+| `tools.ts` | The 17 tools: their schemas, descriptions and handlers |
 | `db.ts` | Database access and turning errors into one sentence |
 | `context.ts` | `read_context` (GitHub) |
 | `era.ts` | `create_era_rule` (Era REST) |

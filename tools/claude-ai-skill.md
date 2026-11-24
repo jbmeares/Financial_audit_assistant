@@ -30,7 +30,9 @@ After that, follow CLAUDE.md and the constitution. Every number comes from a too
 
 Whenever someone corrects you, states a decision plainly, shares a new fact, says you were confusing, or says how the chat is going, save it right away with `log_note` and say "Noted." Don't wait for the chat to end.
 
-What-ifs are for learning, not deciding. Lay out the tradeoffs evenly, don't push for a choice or offer to save one, and treat doing nothing as a fine outcome. A leaning or a "maybe" is not a decision (rule 26).
+What-ifs are for learning, not deciding. Lay out the tradeoffs evenly, don't push for a choice or offer to save one, and treat doing nothing as a fine outcome. A leaning or a "maybe" is not a decision (rule 10).
+
+Budget guesses (the briefing's `sort_questions` item) are asked about only at a weekly check-in or on payday, once per merchant. Save each answer with `sort_spending` so it's never asked again (rule 25).
 
 If the connector isn't available in this chat, say so and stop. Never answer money questions from memory.
 ```

@@ -14,30 +14,31 @@ insert into ref.budget_lines (line_key, name, amount, period, income_key, borrow
   ('food', 'Food', 100.00, 'paycheck', 'pay', 'shopping', true, 1, '2026-01-01'),
   ('shopping', 'Shopping', 200.00, 'month', null, null, true, 2, '2026-01-01'),
   ('extra-debt', 'Extra debt payment', 50.00, 'month', null, null, false, 9, '2026-01-01');
-insert into ref.budget_rules (line_key, era_category, merchant, account_key, priority, valid_from) values
-  ('food', 'Groceries', null, null, 100, '2026-01-01'),
-  ('shopping', 'Shopping and gear', null, null, 100, '2026-01-01'),
-  ('food', null, 'big club', null, 50, '2026-01-01'),
-  (null, null, null, 'bp', 1, '2026-01-01');
+insert into ref.category_map (category_key, category_name, line_key, valid_from) values
+  ('fcat_groc', 'Groceries', 'food', '2026-01-01'),
+  ('fcat_shop', 'Shopping and gear', 'shopping', '2026-01-01');
+insert into ref.merchant_memory (pattern, line_key, source, valid_from) values
+  ('big club', 'food', 'seeded', '2026-01-01'),
+  ('water co', null, 'seeded', '2026-01-01');
 
 insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant) values
-  ('b-groc', 'era-chk', '{"category": "Groceries"}', 'h', -80.00, '2026-02-14', false, 'FOOD MART'),
-  ('b-groc-card', 'era-card', '{"category": "Groceries"}', 'h', -50.00, '2026-02-15', false, 'FOOD MART'),
-  ('b-club', 'era-chk', '{"category": "Shopping and gear"}', 'h', -20.00, '2026-02-16', false, 'BIG CLUB #12'),
-  ('b-store', 'era-chk', '{"category": "Shopping and gear"}', 'h', -45.00, '2026-02-05', false, 'STORE'),
-  ('b-billpay', 'era-bp', '{"category": "Groceries"}', 'h', -500.00, '2026-02-17', false, 'FOOD MART'),
+  ('b-groc', 'era-chk', '{"category": "Groceries", "categoryKey": "fcat_groc"}', 'h', -80.00, '2026-02-14', false, 'FOOD MART'),
+  ('b-groc-card', 'era-card', '{"category": "Groceries", "categoryKey": "fcat_groc"}', 'h', -50.00, '2026-02-15', false, 'FOOD MART'),
+  ('b-club', 'era-chk', '{"category": "Shopping and gear", "categoryKey": "fcat_shop"}', 'h', -20.00, '2026-02-16', false, 'BIG CLUB #12'),
+  ('b-store', 'era-chk', '{"category": "Shopping and gear", "categoryKey": "fcat_shop"}', 'h', -45.00, '2026-02-05', false, 'STORE'),
+  ('b-billpay', 'era-bp', '{"category": "Groceries", "categoryKey": "fcat_groc"}', 'h', -500.00, '2026-02-17', false, 'WATER CO'),
   ('b-transfer', 'era-chk', '{"category": "Groceries", "transferLink": {"status": "auto_detected"}}', 'h', -70.00, '2026-02-17', false, 'FOOD MART'),
   ('b-cardpay', 'era-chk', '{"category": "Transfers and card payments"}', 'h', -300.00, '2026-02-17', false, 'BANK'),
-  ('b-early', 'era-chk', '{"category": "Groceries"}', 'h', -30.00, '2026-02-10', false, 'FOOD MART'),
-  ('b-maybe-bill', 'era-chk', '{"category": "Groceries"}', 'h', -25.00, '2026-02-18', false, 'FOOD MART');
+  ('b-early', 'era-chk', '{"category": "Groceries", "categoryKey": "fcat_groc"}', 'h', -30.00, '2026-02-10', false, 'FOOD MART'),
+  ('b-maybe-bill', 'era-chk', '{"category": "Groceries", "categoryKey": "fcat_groc"}', 'h', -25.00, '2026-02-18', false, 'FOOD MART');
 insert into knowledge.proposed_matches (era_transaction_id, bill_key, due_month, score, reason)
 values ('b-maybe-bill', 'phone', '2026-02-01', 60, 'test');
 
 -- Rules.
 select pg_temp.check((select line_key from calc.budget_spending('2026-02-01', '2026-02-28') where era_transaction_id = 'b-club') = 'food',
-  'a merchant rule beats a category rule when its priority number is lower');
+  'merchant memory beats Era''s category');
 select pg_temp.check((select line_key is null from calc.budget_spending('2026-02-01', '2026-02-28') where era_transaction_id = 'b-billpay'),
-  'a rule with no line makes the bills account count against nothing');
+  'a merchant remembered as not budget spending counts against nothing');
 select pg_temp.check(not exists (select 1 from calc.budget_spending('2026-02-01', '2026-02-28')
                                   where era_transaction_id in ('b-transfer', 'b-cardpay', 'b-maybe-bill', 'tx-pay')),
   'transfers, card payments, possible bill payments and money in don''t count');
@@ -60,11 +61,13 @@ select pg_temp.check((select borrowed = 0 from calc.budget_status('2026-03-02') 
 select calc.refresh_all(null, '2026-02-20');
 select pg_temp.check((select e ->> 'level' = 'GREEN'
                              and e ->> 'text' = 'Budget: Food $0 left of $100 through Feb 26. Shopping $105 left of $200 this month.'
+                                 || ' Guessed so far, until someone confirms: Food $130, Shopping $45.'
+                             and (e -> 'data' -> 'guessed' ->> 'food')::numeric = 130
                         from calc.briefing, jsonb_array_elements(items) e where e ->> 'kind' = 'budget'),
-  'the briefing says what each line has left');
+  'the briefing says what each line has left, and how much of it is a guess');
 
 insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant)
-values ('b-big', 'era-card', '{"category": "Shopping and gear"}', 'h', -150.00, '2026-02-18', false, 'STORE');
+values ('b-big', 'era-card', '{"category": "Shopping and gear", "categoryKey": "fcat_shop"}', 'h', -150.00, '2026-02-18', false, 'STORE');
 select calc.refresh_all(null, '2026-02-20');
 select pg_temp.check((select e ->> 'level' = 'YELLOW' and e ->> 'text' like 'Budget: Over budget: Shopping is empty after covering other lines.%'
                         from calc.briefing, jsonb_array_elements(items) e where e ->> 'kind' = 'budget'),

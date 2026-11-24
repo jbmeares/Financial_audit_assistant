@@ -11,7 +11,7 @@
 | Kind | They… |
 | --- | --- |
 | `correction` | correct something the chat said |
-| `decision` | state a decision plainly ("let's do it", "we're going with…"). A what-if, a leaning or a "maybe" isn't one, and never ask them to decide so there's something to note ([rule 26](../constitution.md)) |
+| `decision` | state a decision plainly ("let's do it", "we're going with…"). A what-if, a leaning or a "maybe" isn't one, and never ask them to decide so there's something to note ([rule 10](../constitution.md)) |
 | `fact` | say something new about the accounts, bills, income or plans (a card swap, a bill change) |
 | `confusion` | say something the chat said was unclear |
 | `feedback` | say how the chat is going, good or bad ("that worked well") |

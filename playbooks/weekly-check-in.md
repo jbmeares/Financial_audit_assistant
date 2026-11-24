@@ -19,6 +19,7 @@ A routine look at the week ahead. Keep it short: one call a week is realistic ([
 - The budget item: say what's left in the lines that matter this week. If a line ran over, say it by category, never by person ([rule 19](../constitution.md)).
 
 - Open questions in the briefing: ask at most one ([rule 14](../constitution.md)).
+- Guesses to check (the `sort_questions` item): go through them one merchant at a time, with the guess and why ("Tractor Supply, I'd put it in Animals. Right?"). Save each answer with `sort_spending`, so it isn't asked again ([rule 25](../constitution.md)). If they'd rather not, leave it: the list waits for the next check-in.
 - YELLOW items: mention calmly. GREEN: only if asked.
 
 ## End with
