@@ -8,29 +8,32 @@ begin;
 -- Since 20261124170000 every bill does this; card_fee isn't needed.
 insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant) values
   ('tx-power-fee', 'era-chk', '{}', 'h', -3.37, '2026-02-09', false, 'CITY POWER'),
-  -- Same day and merchant, bigger than a fee: still smaller than the bill's charge, so it goes with it.
+  -- Same day and merchant, bigger than a fee, and the bill adds up without it: its own purchase
+  -- (since 20261124180000).
   ('tx-power-big', 'era-chk', '{}', 'h', -40.00, '2026-02-09', false, 'CITY POWER');
 
 select calc.refresh_all(null, '2026-02-10');
 
-select pg_temp.check((select status = 'pending' and reason like '%plus $40.00 (2026-02-09) and $3.37 (2026-02-09) from the same merchant within 2 days, recorded with it%'
+select pg_temp.check((select status = 'pending' and reason like '%plus $3.37 (2026-02-09) from the same merchant within 2 days, recorded with it'
                         from knowledge.proposed_matches where era_transaction_id = 'tx-power' and bill_key = 'power'),
   'the bill''s charge is proposed, and the proposal names the fee that came with it');
 select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id in ('tx-power-fee', 'tx-power-big')),
   'the smaller charges are not proposed on their own');
+select pg_temp.check(calc._is_companion('tx-power-fee', '2026-02-10') and not calc._is_companion('tx-power-big', '2026-02-10'),
+  'the fee goes with the bill; the bigger charge doesn''t');
 
 select pg_temp.check((select (actions.confirm_match('james', (select id from knowledge.proposed_matches where era_transaction_id = 'tx-power'))).amount = 112.40),
   'confirm_match returns the bill''s payment');
-select pg_temp.check((select count(*) = 3 and sum(amount) = 155.77 from ledger.payments_effective where bill_key = 'power' and due_month = '2026-02-01'),
-  'and records the smaller charges as payments for the same cycle');
+select pg_temp.check((select count(*) = 2 and sum(amount) = 115.77 from ledger.payments_effective where bill_key = 'power' and due_month = '2026-02-01'),
+  'and records the fee as a payment for the same cycle');
 select pg_temp.check((select note = 'Card fee that came with this bill.' from ledger.payments where era_transaction_id = 'tx-power-fee'),
   'the fee''s payment says what it is');
-select pg_temp.check((select note = 'Part of this bill, paid as a separate charge.' from ledger.payments where era_transaction_id = 'tx-power-big'),
-  'a bigger one is recorded as part of the bill');
+select pg_temp.check(not exists (select 1 from ledger.payments where era_transaction_id = 'tx-power-big'),
+  'a bigger charge the bill doesn''t need is not recorded with it');
 select pg_temp.check((select status = 'paid' from calc.bill_cycles where bill_key = 'power' and due_month = '2026-02-01'),
   'the bill is paid');
-select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id = 'tx-power-fee'),
-  'and the fee is not proposed after the refresh');
+select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id in ('tx-power-fee', 'tx-power-big')),
+  'and neither is proposed after the refresh');
 
 -- A fee still pending at the bank when the bill is confirmed: proposed for the same cycle once it's there.
 insert into ref.bills (bill_key, name, amount, amount_kind, due_day, account_key, autopay, cadence, valid_from)
@@ -71,6 +74,41 @@ select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where 
 select actions.confirm_match('james', (select id from knowledge.proposed_matches where era_transaction_id = 'tx-lawn-1'));
 select pg_temp.check((select count(*) = 2 and sum(amount) = 60 from ledger.payments_effective where bill_key = 'lawn'),
   'confirming it records both parts');
+select pg_temp.check((select note = 'Part of this bill, paid as a separate charge.' from ledger.payments where era_transaction_id = 'tx-lawn-2'),
+  'the other part says what it is');
+
+-- The second part of a split still pending at the bank when the first is confirmed: proposed once it posts.
+insert into ref.bills (bill_key, name, amount, amount_kind, due_day, account_key, autopay, cadence, valid_from)
+values ('tutor', 'Tutor', 80.00, 'fixed', 9, 'chk', false, 'monthly', '2026-01-01');
+insert into ref.bill_aliases (bill_key, alias, valid_from) values ('tutor', 'bright tutors', '2026-01-01');
+insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant) values
+  ('tx-tutor-1', 'era-chk', '{}', 'h', -50.00, '2026-02-08', false, 'BRIGHT TUTORS'),
+  ('tx-tutor-2', 'era-chk', '{}', 'h', -30.00, '2026-02-09', true, 'BRIGHT TUTORS');
+select calc.refresh_all(null, '2026-02-10');
+select actions.confirm_match('james', (select id from knowledge.proposed_matches where era_transaction_id = 'tx-tutor-1'));
+update raw.era_transactions set pending = false where era_transaction_id = 'tx-tutor-2';
+select calc.refresh_all(null, '2026-02-10');
+select pg_temp.check((select status = 'pending' and bill_key = 'tutor' from knowledge.proposed_matches where era_transaction_id = 'tx-tutor-2'),
+  'the late second part of a split is proposed for the same cycle');
+
+-- A separate purchase at the same store two days after a fixed bill (Apple, Nov 2026): not part of the bill.
+insert into ref.bills (bill_key, name, amount, amount_kind, due_day, account_key, autopay, cadence, valid_from)
+values ('app-sub', 'App subscription', 14.82, 'fixed', 6, 'chk', true, 'monthly', '2026-01-01');
+insert into ref.bill_aliases (bill_key, alias, valid_from) values ('app-sub', 'app store', '2026-01-01');
+insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant)
+values ('tx-app', 'era-chk', '{}', 'h', -14.82, '2026-02-06', false, 'APP STORE');
+select calc.refresh_all(null, '2026-02-10');
+select actions.confirm_match('james', (select id from knowledge.proposed_matches where era_transaction_id = 'tx-app'));
+insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant)
+values ('tx-app-2', 'era-chk', '{}', 'h', -4.31, '2026-02-08', false, 'APP STORE');
+select calc.refresh_all(null, '2026-02-10');
+select pg_temp.check(not exists (select 1 from knowledge.proposed_matches where era_transaction_id = 'tx-app-2'),
+  'a later purchase that isn''t fee-sized isn''t proposed for a bill that''s already paid in full');
+insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant) values
+  ('tx-app-big', 'era-chk', '{}', 'h', -30.00, '2026-02-20', false, 'APP STORE'),
+  ('tx-app-small', 'era-chk', '{}', 'h', -1.99, '2026-02-20', false, 'APP STORE');
+select pg_temp.check(not calc._is_companion('tx-app-small', '2026-02-21'),
+  'a small charge beside a purchase that pays no bill stays its own charge');
 
 -- Two equal charges are two payments, not one bill with an extra.
 insert into raw.era_transactions (era_transaction_id, era_account_id, payload, content_hash, amount, occurred_on, pending, merchant)

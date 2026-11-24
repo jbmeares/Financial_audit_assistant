@@ -10,6 +10,6 @@
 
 For a card bill the match can be the payment received on the card, from any account. Confirming it also closes any open proposal on the other side of the same transfer.
 
-Confirming a bill's charge also records the smaller charges from the same merchant, on the same account, within 2 days (a card fee, or a bill paid in two parts) as payments for the same month, once they've posted. One still pending then gets its own proposal later: confirm it the same way.
+Confirming a bill's charge also records the smaller charges its proposal named (a card fee, or the rest of a bill paid in two parts) as payments for the same month, once they've posted. One still pending then gets its own proposal later: confirm it the same way.
 
 **Undo** [void_entry](void_entry.md) with `entry: "payment"`.
